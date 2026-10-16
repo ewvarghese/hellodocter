@@ -1,0 +1,60 @@
+@{ Layout = null; }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Appointments - @ViewBag.DisplayDate</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #333; }
+        h1 { text-align: center; color: #F16622; margin-bottom: 5px; font-size: 28px; font-weight: 800; }
+        h2 { text-align: center; color: #555; margin-top: 0; margin-bottom: 30px; font-size: 16px; font-weight: 600; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #f8f9fa; color: #333; font-weight: bold; text-transform: uppercase; font-size: 12px; }
+        tr:nth-child(even) { background-color: #f9fafb; }
+        .paid { background-color: #d1fae5 !important; }
+        .token { font-weight: bold; color: #0284c7; }
+        .print-btn { display: block; width: 200px; margin: 0 auto 30px; padding: 10px; text-align: center; background: #10b981; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; border: none; cursor: pointer;}
+        @@media print {
+            .print-btn { display: none; }
+            body { padding: 0; }
+        }
+    </style>
+</head>
+<body onload="window.print()">
+    <button class="print-btn" onclick="window.print()">Print / Save as PDF</button>
+    
+    <h1>HELLO DOCTOR</h1>
+    <h2>Online Appointment List on @ViewBag.DisplayDate</h2>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 5%;">Token</th>
+                <th style="width: 15%;">Slot</th>
+                <th style="width: 25%;">Name</th>
+                <th style="width: 10%;">Age</th>
+                <th style="width: 30%;">Address</th>
+                <th style="width: 15%;">Mobile</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (ViewBag.Appointments != null)
+            {
+                foreach (var item in ViewBag.Appointments)
+                {
+                    <tr class="@(item.Payment ? "paid" : "")">
+                        <td class="token">#@item.Token</td>
+                        <td>@item.Frmtymdt</td>
+                        <td style="font-weight:bold;">@item.Pname</td>
+                        <td>@item.Age</td>
+                        <td>@item.Addr</td>
+                        <td>@item.Mobnum</td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+</body>
+</html>

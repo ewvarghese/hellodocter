@@ -1,0 +1,226 @@
+@using Microsoft.AspNetCore.Http
+@inject HelloDoctor.Care.Data.ApplicationDbContext DbContext
+@{
+    string roleId = Context.Session.GetString("roleid") ?? "0";
+    string userName = Context.Session.GetString("username") ?? User.Identity?.Name ?? "User";
+    int userId = Convert.ToInt32(Context.Session.GetString("subuserid") ?? "0");
+
+    var sub = DbContext.SubscriptionDetails
+        .Where(s => s.Drid == userId && s.Actv == true)
+        .OrderByDescending(s => s.Subtodt)
+        .FirstOrDefault();
+
+    int daysLeft = 999;
+    if (sub != null && sub.Subtodt.HasValue)
+    {
+        daysLeft = (sub.Subtodt.Value - DateTime.Now).Days;
+    }
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@ViewData["Title"] - Admin Portal</title>
+    <link href="~/css/tailwind.css" rel="stylesheet" />
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .sidebar-link {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            border-radius: 0.75rem;
+            transition: all 0.2s;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #cbd5e1;
+        }
+
+            .sidebar-link:hover {
+                background-color: #1e293b;
+                color: #ffffff;
+            }
+
+            .sidebar-link i {
+                width: 1.25rem;
+                height: 1.25rem;
+                color: #94a3b8;
+                transition: color 0.2s;
+            }
+
+            .sidebar-link:hover i {
+                color: #ffffff;
+            }
+
+        @@keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.4s ease-out;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 flex h-screen overflow-hidden">
+    <div id="toastContainer" class="fixed top-6 right-6 z-[100] flex flex-col gap-3 pointer-events-none"></div>
+
+    <!-- Mobile Sidebar Overlay -->
+    <div id="sidebarOverlay" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-30 hidden md:hidden transition-opacity opacity-0" onclick="toggleSidebar()"></div>
+
+    <!-- Sidebar / Master Logic -->
+    <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white flex flex-col h-full shadow-2xl transition-transform duration-300 transform -translate-x-full md:relative md:translate-x-0 print:hidden">
+        <div class="p-6 flex items-center justify-between border-b border-slate-800 shrink-0">
+            <span class="text-2xl font-black text-[#f26522] tracking-wider uppercase">PORTAL</span>
+            <!-- Mobile Close Button -->
+            <button onclick="toggleSidebar()" class="md:hidden text-slate-400 hover:text-white transition-colors">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+        </div>
+
+        <div class="p-6 border-b border-slate-800 text-center shrink-0">
+            <div class="w-16 h-16 rounded-full bg-slate-700 mx-auto flex items-center justify-center mb-3">
+                <i data-lucide="user" class="w-8 h-8 text-slate-300"></i>
+            </div>
+            <p class="text-xs text-slate-400 font-bold uppercase tracking-widest">Welcome</p>
+            <p class="font-bold text-lg">@userName</p>
+        </div>
+
+        <nav class="flex-grow overflow-y-auto p-4 space-y-1">
+            <a href="/Admin/Index" class="sidebar-link bg-slate-800 text-white"><i data-lucide="layout-dashboard"></i> Dashboard</a>
+
+            @if (roleId == "1")
+            {
+                <p class="px-3 pt-4 pb-2 text-[10px] font-black text-slate-500 uppercase tracking-widest">Admin Controls</p>
+                <a href="/Admin/Departments" class="sidebar-link"><i data-lucide="building"></i> Departments</a>
+                <a href="/Admin/Districts" class="sidebar-link"><i data-lucide="building"></i> Districts</a>
+                <a href="/Admin/Locations" class="sidebar-link"><i data-lucide="map"></i> Locations</a>
+                <a href="/Admin/Doctors" class="sidebar-link"><i data-lucide="users"></i> Doctors</a>
+
+                <a href="/Admin/SubscriptionPlans" class="sidebar-link"><i data-lucide="credit-card"></i> Subscription Plans</a>
+                <a href="/Admin/Patients" class="sidebar-link"><i data-lucide="users"></i> Patient List</a>
+
+            }
+            else if (roleId == "2")
+            {
+                <p class="px-3 pt-4 pb-2 text-[10px] font-black text-slate-500 uppercase tracking-widest">Admin Doctor</p>
+
+                <a href="/Admin/ConsultationDays" class="sidebar-link"><i data-lucide="calendar"></i> Consultation Days</a>
+                <a href="#" class="sidebar-link"><i data-lucide="list"></i> View All Appointments</a>
+                <a href="/Admin/BookAppointment" class="sidebar-link"><i data-lucide="calendar-plus"></i> Book Appointment</a>
+                <a href="/Admin/Appointments" class="sidebar-link"><i data-lucide="calendar-check"></i> Appointments</a>
+                <a href="/Admin/ManageLeave" class="sidebar-link"><i data-lucide="calendar-off"></i> Manage Leave</a>
+            }
+            else if (roleId == "3")
+            {
+                <p class="px-3 pt-4 pb-2 text-[10px] font-black text-slate-500 uppercase tracking-widest">Doctor</p>
+                <a href="/Admin/ConsultationDays" class="sidebar-link"><i data-lucide="calendar"></i> Consultation Days</a>
+                <a href="/Admin/BookAppointment" class="sidebar-link"><i data-lucide="calendar-plus"></i> Book Appointment</a>
+                <a href="/Admin/Appointments" class="sidebar-link"><i data-lucide="list-ordered"></i> Appointments</a>
+                <a href="/Admin/ManageLeave" class="sidebar-link"><i data-lucide="calendar-off"></i> Manage Leave</a>
+                <a href="/Admin/Settings" class="sidebar-link"><i data-lucide="settings"></i> Settings</a>
+            }
+            else
+            {
+                <p class="px-3 pt-4 pb-2 text-[10px] font-black text-slate-500 uppercase tracking-widest">Staff</p>
+                <a href="#" class="sidebar-link"><i data-lucide="user-plus"></i> Add Doctor</a>
+                <a href="/Admin/BookAppointment" class="sidebar-link"><i data-lucide="calendar-plus"></i> Book Appointment</a>
+                <a href="/Admin/Appointments" class="sidebar-link"><i data-lucide="list"></i> Appointments</a>
+            }
+        </nav>
+    </aside>
+
+    <!-- Main Content Area -->
+    <div class="flex-1 flex flex-col h-full overflow-hidden relative min-w-0">
+        <!-- Header -->
+        <header class="h-[72px] bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8 shadow-sm z-10 shrink-0 print:hidden">
+            <div class="flex items-center gap-3">
+                <!-- Hamburger Menu Button -->
+                <button onclick="toggleSidebar()" class="md:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                    <i data-lucide="menu" class="w-6 h-6"></i>
+                </button>
+                <h2 class="text-lg md:text-xl font-bold text-slate-800 line-clamp-1">@ViewData["Title"]</h2>
+            </div>
+
+            <a href="/Auth/Logout" class="flex items-center gap-2 text-sm font-bold text-red-500 bg-red-50 px-3 py-2 md:px-4 md:py-2.5 rounded-xl hover:bg-red-100 transition-colors shrink-0">
+                <i data-lucide="log-out" class="w-4 h-4"></i> <span class="hidden sm:inline">Logout</span>
+            </a>
+        </header>
+
+        <!-- Subscription Alerts -->
+        @if (daysLeft < 0)
+        {
+            <div class="bg-red-500 text-white px-4 md:px-8 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md shrink-0 print:hidden">
+                <div class="flex items-center gap-3 font-bold text-sm"><i data-lucide="alert-triangle" class="w-5 h-5 shrink-0"></i> Your Subscription was Expired.</div>
+                <a href="/Renewal" class="bg-white text-red-600 px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider hover:bg-red-50 transition-colors shadow-sm text-center sm:text-left">Renew Now</a>
+            </div>
+        }
+        else if (daysLeft == 0)
+        {
+            <div class="bg-orange-500 text-white px-4 md:px-8 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md shrink-0 print:hidden">
+                <div class="flex items-center gap-3 font-bold text-sm"><i data-lucide="clock" class="w-5 h-5 shrink-0"></i> Your Subscription will Expire Today.</div>
+                <a href="/Renewal" class="bg-white text-orange-600 px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider hover:bg-orange-50 transition-colors shadow-sm text-center sm:text-left">Renew Now</a>
+            </div>
+        }
+        else if (daysLeft > 0 && daysLeft < 10)
+        {
+            <div class="bg-yellow-500 text-white px-4 md:px-8 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md shrink-0 print:hidden">
+                <div class="flex items-center gap-3 font-bold text-sm"><i data-lucide="alert-circle" class="w-5 h-5 shrink-0"></i> Your Subscription will expire in @daysLeft Days.</div>
+                <a href="/Renewal" class="bg-white text-yellow-600 px-4 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider hover:bg-yellow-50 transition-colors shadow-sm text-center sm:text-left">Renew Now</a>
+            </div>
+        }
+
+        <!-- Render Body -->
+        <main class="flex-1 overflow-y-auto bg-slate-50/50 p-4 sm:p-6 md:p-8 print:p-0 print:bg-white">
+            @RenderBody()
+        </main>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+      
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+
+            if (sidebar.classList.contains('-translate-x-full')) {
+             
+                sidebar.classList.remove('-translate-x-full');
+                overlay.classList.remove('hidden');
+                setTimeout(() => overlay.classList.remove('opacity-0'), 10);
+            } else {
+            
+                sidebar.classList.add('-translate-x-full');
+                overlay.classList.add('opacity-0');
+                setTimeout(() => overlay.classList.add('hidden'), 300);
+            }
+        }
+
+        function showToast(msg, type) {
+            const t = document.createElement('div');
+            t.className = `p-4 rounded-2xl bg-white border border-slate-100 shadow-xl flex items-center gap-3 animate-in slide-in-from-right duration-300 pointer-events-auto z-[200]`;
+            const icon = type === 'success' ? 'check-circle' : (type === 'error' ? 'alert-circle' : 'info');
+            const color = type === 'success' ? 'text-emerald-500' : (type === 'error' ? 'text-red-500' : 'text-blue-500');
+            t.innerHTML = `<div class="${color}"><i data-lucide="${icon}" class="w-4 h-4"></i></div><div class="text-[11px] font-black text-slate-800 uppercase tracking-widest">${msg}</div>`;
+            document.getElementById('toastContainer').appendChild(t);
+            lucide.createIcons();
+            setTimeout(() => { t.classList.add('opacity-0', 'translate-x-full'); setTimeout(() => t.remove(), 400); }, 5000);
+        }
+    </script>
+    @RenderSection("Scripts", required: false)
+</body>
+</html>

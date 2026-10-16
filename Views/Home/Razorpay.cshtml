@@ -1,0 +1,138 @@
+@{
+    Layout = null; 
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Checkout - HelloDoctor.Care</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+</head>
+<body class="bg-slate-50 flex items-center justify-center min-h-screen p-4">
+    <div class="bg-white rounded-3xl shadow-xl p-8 md:p-10 max-w-md w-full text-center border border-slate-100">
+        
+        <!-- Branding -->
+        <div class="mb-8">
+            <span class="text-3xl font-black text-[#f26522] tracking-wider uppercase">PORTAL</span>
+        </div>
+
+        <!-- Loading State -->
+        <div id="loadingState" class="py-4">
+            <div class="w-16 h-16 border-4 border-slate-100 border-t-[#f26522] rounded-full animate-spin mx-auto mb-6"></div>
+            <h2 class="text-xl font-bold text-slate-800">Securing your session...</h2>
+            <p class="text-sm text-slate-500 mt-2 font-medium">Please do not close this window.</p>
+        </div>
+
+        <!-- Manual Trigger State (Fallback) -->
+        <div id="manualState" class="hidden py-2 animate-in fade-in duration-500">
+            <div class="w-20 h-20 bg-[#f26522]/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                <svg class="w-10 h-10 text-[#f26522]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+            </div>
+            <h2 class="text-2xl font-black text-slate-800 mb-2">Ready to Pay</h2>
+            <p class="text-sm text-slate-500 font-medium mb-8">If the payment window didn't open automatically, click the button below to continue.</p>
+            
+            <button id="payButton" class="w-full bg-[#f26522] hover:bg-[#d95318] text-white px-6 py-4 rounded-xl font-bold text-lg shadow-lg shadow-[#f26522]/30 transition-all flex items-center justify-center gap-3">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                Pay Securely Now
+            </button>
+            
+            <a href="/" class="inline-block mt-6 text-sm font-bold text-slate-400 hover:text-slate-600 transition-colors">Cancel & Return Home</a>
+        </div>
+    </div>
+
+    <form name="razorpayForm" action="/Home/ReturnPayment" method="POST" class="hidden">
+        <input type="hidden" name="razorpay_payment_id" id="razorpay_payment_id" />
+        <input type="hidden" name="razorpay_order_id" id="razorpay_order_id" />
+        <input type="hidden" name="razorpay_signature" id="razorpay_signature" />
+    </form>
+
+    <script type="text/javascript">
+        window.onload = function () {
+            const urlParams = new URLSearchParams(window.location.search);
+            const name = urlParams.get('name') || '';
+            const email = urlParams.get('email') || '';
+            const contact = urlParams.get('mobile') || '';
+            const address = urlParams.get('address') || '';
+            const amount = urlParams.get('amount') || 0;
+            const aptmtid = urlParams.get('aptmtid') || 0;
+            const drid = urlParams.get('drid') || 0;
+
+            fetch('/Home/GenerateOrderBooking', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ 
+                    amount: parseFloat(amount), 
+                    name: name, 
+                    mobile: contact, 
+                    email: email, 
+                    aptmtid: parseInt(aptmtid), 
+                    drid: parseInt(drid) 
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if(!data.orderId) {
+                    alert("Failed to generate order ID.");
+                    window.location.href = '/';
+                    return;
+                }
+
+                const orderId = data.orderId;
+                const options = {
+                    key: " ", // Your Razorpay Live Key
+                    amount: data.amount,  
+                    currency: "INR",
+                    name: "HelloDoctor.Care", 
+                    description: "Appointment Booking",
+                    order_id: orderId,
+                    prefill: {
+                        name: name,
+                        email: email,
+                        contact: contact
+                    },
+                    notes: {
+                        address: address
+                    },
+                    theme: {
+                        color: "#f26522" // Brand primary color
+                    },
+                    handler: function (response) {
+                        document.getElementById('razorpay_payment_id').value = response.razorpay_payment_id;
+                        document.getElementById('razorpay_order_id').value = orderId;
+                        document.getElementById('razorpay_signature').value = response.razorpay_signature;
+                        document.razorpayForm.submit();
+                    },
+                    modal: {
+                        ondismiss: function() {
+                            
+                        }
+                    }
+                };
+                
+                var rzp = new Razorpay(options);
+                
+       
+                document.getElementById('loadingState').classList.add('hidden');
+                document.getElementById('manualState').classList.remove('hidden');
+
+        
+                document.getElementById('payButton').onclick = function(e){
+                    rzp.open();
+                    e.preventDefault();
+                };
+
+         
+                rzp.open();
+            })
+            .catch(() => {
+                alert("Failed to initiate payment. Please check your internet connection.");
+                window.location.href = '/';
+            });
+        };
+    </script>
+</body>
+</html>

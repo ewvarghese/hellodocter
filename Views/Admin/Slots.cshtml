@@ -1,0 +1,161 @@
+@{ ViewData["Title"] = "Manage Slots"; }
+<div class="w-full flex-grow flex flex-col py-6 px-2">
+    <div class="max-w-4xl mx-auto w-full space-y-8 animate-in fade-in duration-500">
+        
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <a href="/Admin/ConsultationDays" class="w-10 h-10 bg-slate-200 text-slate-600 rounded-full flex items-center justify-center hover:bg-slate-300 transition-colors shrink-0"><i data-lucide="arrow-left" class="w-5 h-5"></i></a>
+                <h3 class="text-2xl font-black text-slate-800 flex items-center gap-3">
+                    <i data-lucide="clock" class="text-[#f26522]"></i> Manage Slots
+                </h3>
+            </div>
+            
+            <div class="flex items-center gap-3">
+                <span class="text-sm font-bold text-slate-500 uppercase tracking-widest shrink-0">Select Day:</span>
+                <select onchange="window.location.href='/Admin/Slots?cnid=' + this.value;" class="w-full md:w-auto px-5 py-3.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm hover:border-slate-300 cursor-pointer">
+                    @if (ViewBag.ActiveDays != null)
+                    {
+                        foreach (Microsoft.AspNetCore.Mvc.Rendering.SelectListItem d in ViewBag.ActiveDays)
+                        {
+                            if (d.Value == ViewBag.Cnid.ToString())
+                            {
+                                <option value="@d.Value" selected="selected">@d.Text</option>
+                            }
+                            else
+                            {
+                                <option value="@d.Value">@d.Text</option>
+                            }
+                        }
+                    }
+                </select>
+            </div>
+        </div>
+
+      
+        <div class="bg-white border border-slate-200 rounded-[2rem] p-8 shadow-sm">
+            <form action="/Admin/GenerateSlots" method="post" class="space-y-6">
+                <input type="hidden" name="cnid" value="@ViewBag.Cnid" />
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                        <p class="text-xs font-bold text-slate-700 mb-2">From Time</p>
+                        <select name="startTime" required class="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm hover:border-slate-300">
+                            @{ 
+                                string[] times = {"08:00 AM", "08:30 AM", "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM", "11:00 AM", "11:30 AM", "12:00 PM", "12:30 PM", "01:00 PM", "01:30 PM", "02:00 PM", "02:30 PM", "03:00 PM", "03:30 PM", "04:00 PM", "04:30 PM", "05:00 PM", "05:30 PM", "06:00 PM", "06:30 PM", "07:00 PM", "07:30 PM", "08:00 PM", "08:30 PM", "09:00 PM"};
+                                foreach(var t in times) {
+                                    <option value="@t">@t</option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                    <div>
+                        <p class="text-xs font-bold text-slate-700 mb-2">To Time</p>
+                        <select name="endTime" required class="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm hover:border-slate-300">
+                            @foreach(var t in times) {
+                                <option value="@t">@t</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div>
+                        <p class="text-xs font-bold text-slate-700 mb-2">Slot Duration</p>
+                        <select name="duration" required class="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm hover:border-slate-300">
+                            <option value="5">5 Mins</option>
+                            <option value="10">10 Mins</option>
+                            <option value="15" selected>15 Mins</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="pt-2">
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold shadow-md transition-colors flex items-center gap-2">
+                        <i data-lucide="plus-circle" class="w-4 h-4"></i> Add Slots
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        
+        <div class="bg-white border border-slate-200 rounded-[2rem] p-8 shadow-sm">
+            <form action="/Admin/ManageSlots" method="post" id="manageSlotsForm">
+                <input type="hidden" name="cnid" value="@ViewBag.Cnid" />
+         
+                <div class="flex flex-wrap items-center gap-3 mb-6 pb-6 border-b border-slate-100">
+                    <button type="submit" name="actionType" value="delete" onclick="return confirm('Are you sure you want to delete selected slots?');" class="bg-red-50 hover:bg-red-500 text-red-600 hover:text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-colors flex items-center gap-2 border border-red-200 hover:border-transparent">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i> Delete Selected
+                    </button>
+                    <button type="submit" name="actionType" value="sleep" class="bg-slate-100 hover:bg-slate-800 text-slate-700 hover:text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-colors flex items-center gap-2 border border-slate-200 hover:border-transparent">
+                        <i data-lucide="moon" class="w-4 h-4"></i> Add SleepTime
+                    </button>
+                    <button type="submit" name="actionType" value="unsleep" class="bg-emerald-50 hover:bg-emerald-500 text-emerald-600 hover:text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-colors flex items-center gap-2 border border-emerald-200 hover:border-transparent">
+                        <i data-lucide="sun" class="w-4 h-4"></i> Activate Time
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-slate-200">
+                                <th class="py-4 px-4 text-xs font-black text-slate-400 uppercase tracking-widest w-16">Sl</th>
+                                <th class="py-4 px-4 text-xs font-black text-slate-400 uppercase tracking-widest w-16">
+                                    <input type="checkbox" id="selectAll" class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+                                </th>
+                                <th class="py-4 px-4 text-xs font-black text-slate-400 uppercase tracking-widest">Slot</th>
+                                <th class="py-4 px-4 text-xs font-black text-slate-400 uppercase tracking-widest">Token No</th>
+                                <th class="py-4 px-4 text-xs font-black text-slate-400 uppercase tracking-widest text-center">Sleep Status</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-sm font-semibold text-slate-700">
+                            @if (ViewBag.Slots != null && ViewBag.Slots.Count > 0)
+                            {
+                                int index = 1;
+                                foreach (var item in ViewBag.Slots)
+                                {
+                                    <tr class="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                                        <td class="py-4 px-4 text-slate-400">@index</td>
+                                        <td class="py-4 px-4">
+                                            <input type="checkbox" name="selectedSlots" value="@item.Slotdtid" class="slot-checkbox w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+                                        </td>
+                                        <td class="py-4 px-4 font-black">@item.Frmtymdt</td>
+                                        <td class="py-4 px-4">
+                                            <span class="bg-blue-50 text-blue-600 px-3 py-1 rounded-lg text-xs font-black">#@item.Token</span>
+                                        </td>
+                                        <td class="py-4 px-4 text-center">
+                                            <a href="/Admin/ToggleSlotStatus?slotdtid=@item.Slotdtid&cnid=@ViewBag.Cnid" class="inline-flex items-center justify-center p-2 rounded-xl transition-colors @(item.Actv ? "bg-emerald-50 text-emerald-500 hover:bg-emerald-100" : "bg-slate-100 text-slate-400 hover:bg-slate-200")" title="Toggle Status">
+                                                @if(item.Actv) { <i data-lucide="check-circle" class="w-5 h-5"></i> } 
+                                                else { <i data-lucide="minus-circle" class="w-5 h-5"></i> }
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    index++;
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="5" class="py-12 text-center">
+                                        <div class="text-red-500 font-bold text-lg mb-2">No Slots Added.</div>
+                                        <p class="text-slate-400 text-sm">Use the form above to generate time slots for this day.</p>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </form>
+        </div>
+
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    document.getElementById('selectAll').addEventListener('change', function() {
+        const checkboxes = document.querySelectorAll('.slot-checkbox');
+        for (const checkbox of checkboxes) {
+            checkbox.checked = this.checked;
+        }
+    });
+</script>
+}

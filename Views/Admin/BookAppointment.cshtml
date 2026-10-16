@@ -1,0 +1,262 @@
+@{ ViewData["Title"] = "Book Walk-In Appointment"; }
+
+<div class="w-full flex-grow flex flex-col py-6 px-2">
+    <div class="max-w-5xl mx-auto w-full space-y-8 animate-in fade-in duration-500">
+        
+        <div class="flex items-center justify-between">
+            <h3 class="text-2xl font-black text-slate-800 flex items-center gap-3">
+                <i data-lucide="calendar-plus" class="text-[#f26522]"></i> Book New Appointment
+            </h3>
+        </div>
+
+        @if (TempData["ErrorMessage"] != null)
+        {
+            <div class="bg-red-50 border border-red-200 text-red-600 px-6 py-4 rounded-xl font-bold flex items-center gap-3">
+                <i data-lucide="alert-circle" class="w-5 h-5 shrink-0"></i> @TempData["ErrorMessage"]
+            </div>
+        }
+
+        <form action="/Admin/SubmitBooking" method="post" class="bg-white border border-slate-200 rounded-[2rem] p-8 shadow-sm space-y-8" onsubmit="return validateBooking()">
+            
+            <div class="grid md:grid-cols-12 gap-8">
+               
+                <div class="md:col-span-7 space-y-6 md:border-r md:border-slate-100 md:pr-8">
+                    <div class="text-sm font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2 mb-2">
+                        Schedule Details
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Doctor</label>
+                        <input type="hidden" name="DoctorId" id="doctorId" value="@ViewBag.DoctorId" />
+                        <div class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 font-semibold">
+                            @ViewBag.DoctorName
+                        </div>
+                    </div>
+
+              
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Appointment Date <span class="text-red-500">*</span></label>
+                        <input type="hidden" name="Date" id="aptDate" required />
+                        
+                        <div class="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                            <div class="flex items-center justify-between p-4 border-b border-slate-100 bg-slate-50">
+                                <button type="button" onclick="changeCalMonth(-1)" class="p-2 hover:bg-slate-200 rounded-lg text-slate-600 transition-colors">
+                                    <i data-lucide="chevron-left" class="w-5 h-5"></i>
+                                </button>
+                                <div id="calMonthYear" class="text-base font-black text-slate-800 uppercase tracking-wide"></div>
+                                <button type="button" onclick="changeCalMonth(1)" class="p-2 hover:bg-slate-200 rounded-lg text-slate-600 transition-colors">
+                                    <i data-lucide="chevron-right" class="w-5 h-5"></i>
+                                </button>
+                            </div>
+                            <div class="p-4">
+                                <div class="grid grid-cols-7 gap-2 text-center text-[11px] font-black text-[#f26522] uppercase tracking-widest mb-3">
+                                    <div>Su</div><div>Mo</div><div>Tu</div><div>We</div><div>Th</div><div>Fr</div><div>Sa</div>
+                                </div>
+                                <div id="calGrid" class="grid grid-cols-7 gap-2 text-center">
+                           
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Available Slots <span class="text-red-500">*</span></label>
+                        <input type="hidden" name="Slotdtid" id="selectedSlotId" required />
+                        
+                        <div id="slotsContainer" class="grid grid-cols-3 gap-3 mt-2 max-h-[220px] overflow-y-auto pr-2">
+                            <p class="text-sm text-slate-500 col-span-full bg-slate-50 p-6 rounded-xl text-center border border-slate-100 font-medium">
+                                Please select a date to view available slots.
+                            </p>
+                        </div>
+                        <p id="slotError" class="text-xs font-bold text-red-500 mt-2 hidden">You must select a time slot!</p>
+                    </div>
+                </div>
+
+         
+                <div class="md:col-span-5 space-y-6">
+                    <div class="text-sm font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2 mb-2">
+                        Patient Details
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Patient Name <span class="text-red-500">*</span></label>
+                        <input type="text" name="PatientName" id="PatientName" required class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:border-[#f26522] focus:ring-4 focus:ring-[#f26522]/10 transition-all" placeholder="Enter full name">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Mobile Number <span class="text-red-500">*</span></label>
+                        <input type="tel" name="Mobile" id="Mobile" required pattern="[0-9]{10,12}" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:border-[#f26522] focus:ring-4 focus:ring-[#f26522]/10 transition-all" placeholder="e.g. 9876543210">
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-bold text-slate-700 mb-2">Age <span class="text-red-500">*</span></label>
+                            <input type="number" name="Age" id="Age" required min="1" max="120" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:border-[#f26522] focus:ring-4 focus:ring-[#f26522]/10 transition-all" placeholder="Age">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-slate-700 mb-2">Place <span class="text-red-500">*</span></label>
+                            <input type="text" name="Address" id="Address" required class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:border-[#f26522] focus:ring-4 focus:ring-[#f26522]/10 transition-all" placeholder="City/Town">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pt-6 border-t border-slate-100 flex justify-end gap-4 mt-8">
+                <a href="/Admin/Appointments" class="px-6 py-3 font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded-xl transition-colors">Cancel</a>
+                <button type="submit" id="submitBtn" class="px-8 py-3 font-bold text-white bg-[#f26522] hover:bg-[#d95318] rounded-xl shadow-md shadow-[#f26522]/20 transition-all flex items-center gap-2">
+                    <i data-lucide="check-circle" class="w-5 h-5"></i> Book Now
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        lucide.createIcons();
+        
+        let currentCalDate = new Date();
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            const aptDateInput = document.getElementById('aptDate');
+            if (!aptDateInput.value) {
+             
+                const t = new Date();
+                aptDateInput.value = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+            }
+            currentCalDate = new Date(aptDateInput.value);
+            renderCalendar();
+            fetchSlots(); 
+        });
+
+        function renderCalendar() {
+            const monthYear = document.getElementById('calMonthYear');
+            const grid = document.getElementById('calGrid');
+            const aptDateInput = document.getElementById('aptDate');
+
+            const year = currentCalDate.getFullYear();
+            const month = currentCalDate.getMonth();
+
+            const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+            monthYear.textContent = `${monthNames[month]} ${year}`;
+
+            grid.innerHTML = '';
+
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+     
+            for (let i = 0; i < firstDay; i++) {
+                grid.innerHTML += '<div></div>';
+            }
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            for (let d = 1; d <= daysInMonth; d++) {
+                const dateObj = new Date(year, month, d);
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'w-full py-2.5 text-sm rounded-lg transition-all font-bold ';
+                btn.textContent = d;
+
+      
+                if (dateObj < today) {
+                    btn.classList.add('text-slate-300', 'bg-slate-50', 'cursor-not-allowed', 'opacity-50');
+                    btn.disabled = true;
+                } else if (aptDateInput.value === dateStr) {
+                    btn.classList.add('bg-[#f26522]', 'text-white', 'shadow-md', 'scale-105');
+                } else {
+                    btn.classList.add('text-slate-700', 'bg-slate-50', 'hover:bg-slate-200', 'border', 'border-slate-100');
+                }
+
+                if (!btn.disabled) {
+                    btn.onclick = () => {
+                        aptDateInput.value = dateStr;
+                        renderCalendar();
+                        fetchSlots();     
+                    };
+                }
+                
+                grid.appendChild(btn);
+            }
+        }
+
+        function changeCalMonth(delta) {
+            currentCalDate.setMonth(currentCalDate.getMonth() + delta);
+            renderCalendar();
+        }
+
+        function fetchSlots() {
+            const drid = document.getElementById('doctorId').value;
+            const date = document.getElementById('aptDate').value;
+            const container = document.getElementById('slotsContainer');
+            const hiddenSlot = document.getElementById('selectedSlotId');
+            
+            hiddenSlot.value = '';
+
+            if (!drid || !date) {
+                container.innerHTML = '<p class="text-sm text-slate-500 col-span-full bg-slate-50 p-6 rounded-xl text-center border border-slate-100 font-medium">Please select a doctor and date to view available slots.</p>';
+                return;
+            }
+
+            container.innerHTML = '<p class="text-sm text-[#f26522] font-bold col-span-full text-center animate-pulse py-4">Checking availability...</p>';
+
+            fetch(`/Admin/GetDoctorSlots?drid=${drid}&date=${date}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.length === 0) {
+                        container.innerHTML = '<p class="text-sm text-red-500 font-bold col-span-full bg-red-50 p-6 rounded-xl text-center border border-red-100">No slots available for this day. Please try another date.</p>';
+                        return;
+                    }
+                    
+                    container.innerHTML = '';
+                    data.forEach(slot => {
+                        const btn = document.createElement('div');
+                        btn.className = 'slot-btn cursor-pointer py-3 border border-[#f26522] text-[#f26522] bg-white font-bold rounded-xl hover:bg-[#f26522] hover:text-white transition-all shadow-sm text-center flex flex-col items-center justify-center';
+                        btn.innerHTML = `<span class="text-sm tracking-wide">${slot.frmtymdt}</span>`;
+                        
+                        btn.onclick = function() {
+                        
+                            document.querySelectorAll('.slot-btn').forEach(b => {
+                                b.classList.remove('bg-[#f26522]', 'text-white');
+                                b.classList.add('bg-white', 'text-[#f26522]');
+                            });
+                            
+                       
+                            this.classList.remove('bg-white', 'text-[#f26522]');
+                            this.classList.add('bg-[#f26522]', 'text-white');
+                            
+                            hiddenSlot.value = slot.slotdtid;
+                            document.getElementById('slotError').classList.add('hidden');
+                        };
+                        container.appendChild(btn);
+                    });
+                })
+                .catch(err => {
+                    container.innerHTML = '<p class="text-sm text-red-500 font-bold col-span-full">Error loading slots. Please try again.</p>';
+                });
+        }
+
+        function validateBooking() {
+            const slot = document.getElementById('selectedSlotId').value;
+            const patientName = document.getElementById('PatientName').value;
+
+           
+            const letters = /^[.A-Za-z\s]+$/;
+            if (!patientName.match(letters)) {
+                alert('Please enter patient name in English characters only.');
+                document.getElementById('PatientName').focus();
+                return false;
+            }
+
+            if (!slot) {
+                document.getElementById('slotError').classList.remove('hidden');
+                return false;
+            }
+            return true;
+        }
+    </script>
+}

@@ -1,0 +1,305 @@
+@{
+    ViewData["Title"] = "View Appointments";
+}
+
+<style>
+ 
+    .calendar-day {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.875rem;
+        font-weight: 700;
+        border-radius: 0.5rem;
+        transition: all 0.2s;
+        cursor: pointer;
+        width: 100%;
+        padding: 0.75rem 0;
+    }
+</style>
+
+<div class="w-full flex-grow flex flex-col py-6 px-2">
+    <div class="max-w-6xl mx-auto w-full space-y-8 animate-in fade-in duration-500">
+
+        <h3 class="text-2xl font-black text-slate-800 flex items-center gap-3">
+            <i data-lucide="calendar-check" class="text-[#f26522]"></i> Appointments
+        </h3>
+
+        <!-- Calendar Panel -->
+        <div class="bg-white border border-slate-200 rounded-[2rem] p-8 shadow-sm">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+                <div class="flex items-center gap-4">
+                    <h3 class="font-black text-slate-900 text-xl" id="calendarMonthTitle">Month Year</h3>
+                    <div class="flex gap-2">
+                        <button type="button" onclick="changeMonth(-1)" class="p-2 bg-white hover:bg-slate-50 rounded-xl border border-slate-200 shadow-sm"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
+                        <button type="button" onclick="changeMonth(1)" class="p-2 bg-white hover:bg-slate-50 rounded-xl border border-slate-200 shadow-sm"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
+                    </div>
+                </div>
+                <a href="/Admin/PrintAppointments?date=@ViewBag.SelectedDate" target="_blank" class="bg-[#10b981] hover:bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold shadow-md transition-colors flex items-center gap-2 shrink-0">
+                    <i data-lucide="printer" class="w-5 h-5"></i> Print PDF
+                </a>
+            </div>
+
+            @if (ViewBag.ShowProfileEdit == true)
+            {
+                <!-- Live Queue Token Input Feature -->
+                <div class="mb-8 bg-blue-50 border border-blue-200 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div>
+                        <h4 class="font-black text-blue-900">Live Queue Token</h4>
+                        <p class="text-sm text-blue-700 font-semibold">Update the token number currently being served.</p>
+                    </div>
+                    <form action="/Admin/UpdateLiveToken" method="post" class="flex items-center gap-2" onsubmit="updateTokenAjax(event)">
+                        <input type="hidden" name="Date" value="@ViewBag.SelectedDate" />
+                        <input type="number" name="LiveToken" value="@ViewBag.LiveToken" min="0" class="w-28 px-5 py-3.5 bg-white border border-blue-200 rounded-xl outline-none font-black text-blue-900 text-center shadow-inner focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all">
+                        <button type="submit" class="bg-blue-600 text-white px-5 py-3.5 rounded-xl font-bold shadow-md hover:bg-blue-700 transition-colors flex items-center justify-center min-w-[100px]">Update</button>
+                    </form>
+                </div>
+            }
+
+            <!-- Full Width Container for Alignment -->
+            <div class="w-full">
+                <div class="grid grid-cols-7 gap-2 text-center text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-widest mb-4">
+                    <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+                </div>
+                <div class="grid grid-cols-7 gap-2" id="calendarGrid"></div>
+            </div>
+
+            <div class="flex items-center gap-6 mt-6 pt-6 border-t border-slate-100 text-xs font-bold text-slate-500 justify-center">
+                <div class="flex items-center gap-2"><div class="w-3 h-3 rounded bg-[#1e293b]"></div> Selected Date</div>
+                <div class="flex items-center gap-2"><div class="w-3 h-3 rounded bg-emerald-100 border border-emerald-200"></div> Appointments Available</div>
+                <div class="flex items-center gap-2"><div class="w-3 h-3 rounded bg-slate-50 border border-slate-200 flex items-center justify-center"><div class="w-full h-px bg-slate-300 transform -rotate-45"></div></div> Leave Disabled</div>
+            </div>
+        </div>
+
+        <!-- Grid/Table Panel -->
+        <div class="bg-white border border-slate-200 rounded-[2rem] p-8 shadow-sm">
+            <h4 class="text-lg font-black text-slate-900 mb-6 border-b border-slate-100 pb-4">Appointments for @ViewBag.DisplayDate</h4>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse whitespace-nowrap">
+                    <thead>
+                        <tr class="border-b border-slate-200">
+                            <th class="py-4 px-4 text-xs font-black text-slate-400 uppercase tracking-widest w-12">Sl</th>
+                            <th class="py-4 px-4 text-xs font-black text-slate-400 uppercase tracking-widest">Name</th>
+                            <th class="py-4 px-4 text-xs font-black text-slate-400 uppercase tracking-widest">Address</th>
+                            <th class="py-4 px-4 text-xs font-black text-slate-400 uppercase tracking-widest w-16">Age</th>
+                            <th class="py-4 px-4 text-xs font-black text-slate-400 uppercase tracking-widest">Mobile</th>
+                            <th class="py-4 px-4 text-xs font-black text-slate-400 uppercase tracking-widest text-center w-24">Token</th>
+                            <th class="py-4 px-4 text-xs font-black text-slate-400 uppercase tracking-widest w-32">Slot</th>
+                            <th class="py-4 px-4 text-xs font-black text-slate-400 uppercase tracking-widest text-center w-20">Options</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-sm font-semibold text-slate-700">
+                        @if (ViewBag.Appointments != null)
+                        {
+                            int index = 1;
+                            foreach (var item in ViewBag.Appointments)
+                            {
+                                string rowClass = item.Payment ? "bg-emerald-50 hover:bg-emerald-100" : "hover:bg-slate-50/50";
+                                string tokenClass = item.Payment ? "bg-emerald-100 text-emerald-700" : "bg-blue-50 text-blue-600";
+
+                                <tr class="border-b border-slate-50 transition-colors @rowClass">
+                                    <td class="py-4 px-4 text-slate-400">@index</td>
+                                    <td class="py-4 px-4 font-black">@item.Pname</td>
+                                    <td class="py-4 px-4 truncate max-w-[200px]" title="@item.Addr">@item.Addr</td>
+                                    <td class="py-4 px-4">@item.Age</td>
+                                    <td class="py-4 px-4 font-black text-slate-900">@item.Mobnum</td>
+                                    <td class="py-4 px-4 text-center">
+                                        <span class="px-3 py-1 rounded-lg text-xs font-black @tokenClass">#@item.Token</span>
+                                    </td>
+                                    <td class="py-4 px-4">@item.Frmtymdt</td>
+                                    <td class="py-4 px-4 text-center">
+                                        <form action="/Admin/DeleteAppointment" method="post" onsubmit="return confirm('Are you sure you want to delete this appointment?');">
+                                            <input type="hidden" name="aptmtid" value="@item.Aptmtid" />
+                                            <input type="hidden" name="returnDate" value="@ViewBag.SelectedDate" />
+                                            <button type="submit" class="inline-flex items-center justify-center p-2 rounded-lg bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-colors" title="Delete Appointment">
+                                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                index++;
+                            }
+                            if (index == 1)
+                            {
+                                <tr>
+                                    <td colspan="8" class="py-12 text-center">
+                                        <div class="text-red-500 font-bold text-lg mb-2">No Appointments</div>
+                                        <p class="text-slate-400 text-sm">There are no appointments scheduled for this date.</p>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const activeDates = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(ViewBag.ActiveDates ?? new List<string>()));
+        const leaveDates = @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(ViewBag.LeaveDates ?? new List<string>()));
+
+        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        const monthMap = { "jan": 0, "feb": 1, "mar": 2, "apr": 3, "may": 4, "jun": 5, "jul": 6, "aug": 7, "sep": 8, "oct": 9, "nov": 10, "dec": 11 };
+
+        const urlParams = new URLSearchParams(window.location.search);
+        let selectedDateStr = '@ViewBag.SelectedDate';
+        let currentDate;
+
+       
+        if (!urlParams.get('date')) {
+            const istDate = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+            const y = istDate.getFullYear();
+            const m = String(istDate.getMonth() + 1).padStart(2, '0');
+            const d = String(istDate.getDate()).padStart(2, '0');
+
+            selectedDateStr = `${y}-${m}-${d}`;
+            currentDate = new Date(y, istDate.getMonth(), istDate.getDate());
+
+      
+            const displayStr = `${d}-${monthNames[istDate.getMonth()].substring(0, 3)}-${y}`;
+            const headerEl = document.querySelector('h4.text-lg.font-black');
+            if (headerEl) headerEl.textContent = `Appointments for ${displayStr}`;
+        } else {
+       
+            const parts = selectedDateStr.split('-');
+            if (parts.length === 3) {
+                currentDate = new Date(parts[0], parts[1] - 1, parts[2]);
+            } else {
+                currentDate = new Date(selectedDateStr);
+            }
+        }
+
+        if (isNaN(currentDate.getTime())) {
+            const istDate = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+            currentDate = new Date(istDate.getFullYear(), istDate.getMonth(), istDate.getDate());
+        }
+
+        function parseLeaveDate(ds) {
+            if (!ds) return 0;
+            let parts = ds.split('-');
+            if (parts.length === 3) {
+                return new Date(parseInt(parts[2]), monthMap[parts[1].toLowerCase()], parseInt(parts[0])).getTime();
+            }
+            let fallback = new Date(ds);
+            fallback.setHours(0, 0, 0, 0);
+            return fallback.getTime();
+        }
+
+        function renderCalendar() {
+            const grid = document.getElementById('calendarGrid');
+            if (!grid) return;
+
+            const month = currentDate.getMonth();
+            const year = currentDate.getFullYear();
+            document.getElementById('calendarMonthTitle').textContent = `${monthNames[month]} ${year}`;
+            grid.innerHTML = '';
+
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+            for (let i = 0; i < firstDay; i++) {
+                grid.innerHTML += '<div class="calendar-day border border-transparent cursor-default pointer-events-none"></div>';
+            }
+
+            for (let d = 1; d <= daysInMonth; d++) {
+                const dateObj = new Date(year, month, d);
+                const dTime = dateObj.getTime();
+
+                const dayPad = d.toString().padStart(2, '0');
+                const monthStr = monthNames[month].substring(0, 3);
+                const formatForActiveCheck = `${dayPad}-${monthStr}-${year}`;
+
+                const monthPad = (month + 1).toString().padStart(2, '0');
+                const formatForSubmit = `${year}-${monthPad}-${dayPad}`;
+
+                const btn = document.createElement('button');
+                btn.type = "button";
+                btn.className = "calendar-day border shadow-sm transition-all";
+                btn.textContent = d;
+
+                const hasAppointments = activeDates.includes(formatForActiveCheck);
+                const onLeave = leaveDates.some(l => parseLeaveDate(l) === dTime);
+                const isSelected = formatForSubmit === selectedDateStr;
+
+                if (onLeave) {
+                    btn.classList.add('bg-slate-50', 'text-slate-300', 'line-through', 'cursor-not-allowed');
+                    btn.disabled = true;
+                    const overlay = document.createElement('div');
+                    overlay.className = "absolute inset-0 flex items-center justify-center pointer-events-none";
+                    overlay.innerHTML = '<div class="w-full h-px bg-slate-200 transform -rotate-45"></div>';
+                    btn.classList.add('relative', 'overflow-hidden');
+                    btn.appendChild(overlay);
+                } else if (isSelected) {
+                    btn.classList.add('bg-[#1e293b]', 'text-white', 'border-[#1e293b]', 'scale-105', 'z-10', 'shadow-md');
+                } else if (hasAppointments) {
+                    btn.classList.add('bg-emerald-100', 'text-emerald-700', 'border-emerald-200', 'hover:bg-emerald-200');
+                } else {
+                    btn.classList.add('bg-white', 'text-slate-600', 'border-slate-100', 'hover:bg-slate-50');
+                }
+
+                btn.onclick = () => {
+                    window.location.href = `/Admin/Appointments?date=${formatForSubmit}`;
+                };
+
+                grid.appendChild(btn);
+            }
+            lucide.createIcons();
+        }
+
+        function changeMonth(delta) {
+            currentDate.setMonth(currentDate.getMonth() + delta);
+            renderCalendar();
+        }
+
+
+        async function updateTokenAjax(e) {
+            e.preventDefault();
+            const form = e.target;
+            const formData = new FormData(form);
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const originalHtml = submitBtn.innerHTML;
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i>';
+            lucide.createIcons();
+
+            try {
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const tokenValue = formData.get('LiveToken');
+                    if (typeof showToast === 'function') {
+                        showToast(`Live Queue Token updated to #${tokenValue}`, 'success');
+                    } else {
+                        alert(`Live Queue Token updated to #${tokenValue}`);
+                    }
+                } else {
+                    if (typeof showToast === 'function') {
+                        showToast('Failed to update live token.', 'error');
+                    } else {
+                        alert('Failed to update live token.');
+                    }
+                }
+            } catch (err) {
+                console.error("Error updating token:", err);
+                if (typeof showToast === 'function') {
+                    showToast('An error occurred while updating the token.', 'error');
+                }
+            } finally {
+         
+                submitBtn.innerHTML = originalHtml;
+                submitBtn.disabled = false;
+            }
+        }
+
+        window.addEventListener('load', renderCalendar);
+    </script>
+}

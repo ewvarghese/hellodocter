@@ -1,0 +1,276 @@
+﻿@{ 
+    ViewData["Title"] = "Dashboard"; 
+    var user = ViewBag.User as HelloDoctor.Care.Models.AdminUser;
+    var doctor = ViewBag.Doctor as HelloDoctor.Care.Models.Doctor;
+    bool showProfileEdit = (user?.Roleid == 2 || user?.Roleid == 3);
+}
+<div class="w-full flex-grow flex flex-col py-6 px-2">
+    <div class="max-w-4xl mx-auto w-full space-y-8 animate-in fade-in duration-500">
+        
+        <h3 class="text-2xl font-black text-slate-800 flex items-center gap-3">
+            <i data-lucide="user" class="text-blue-600"></i> Welcome To Admin
+        </h3>
+
+        
+        <div class="bg-white border border-slate-200 rounded-[2rem] p-8 shadow-sm">
+            <h5 class="font-black text-slate-800 mb-6 flex items-center gap-2"><i data-lucide="list-todo"></i> User Details</h5>
+            
+            <div class="space-y-4">
+                <div class="flex items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <span class="font-bold text-slate-700 min-w-[100px]">Username:</span>
+                    <span class="px-3 py-1 bg-blue-600 text-white text-xs font-bold rounded-lg tracking-wider">@user?.Uname</span>
+                </div>
+                
+                <div class="flex items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <span class="font-bold text-slate-700 min-w-[100px]">Email:</span>
+                    <span class="px-3 py-1 bg-blue-600 text-white text-xs font-bold rounded-lg tracking-wider">@user?.Email</span>
+                </div>
+
+                @if(showProfileEdit && doctor != null) {
+                    <div class="flex items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                        <span class="font-bold text-slate-700 min-w-[100px]">URL:</span>
+                        <span class="px-3 py-1 bg-blue-600 text-white text-xs font-bold rounded-lg tracking-wider">http://hellodoctor.care/dr/@doctor.Mob2</span>
+                    </div>
+                }
+            </div>
+
+            <div class="flex gap-3 mt-8 pt-6 border-t border-slate-100">
+                <button onclick="toggleModal('modalPassword')" class="flex items-center gap-2 bg-slate-800 text-white px-5 py-3.5 rounded-xl text-sm font-bold shadow-md hover:bg-slate-700 transition-colors"><i data-lucide="key" class="w-4 h-4"></i> Password</button>
+                <button onclick="toggleModal('modalEmail')" class="flex items-center gap-2 bg-slate-800 text-white px-5 py-3.5 rounded-xl text-sm font-bold shadow-md hover:bg-slate-700 transition-colors"><i data-lucide="mail" class="w-4 h-4"></i> Email</button>
+                
+                @if(showProfileEdit) {
+                    <button onclick="toggleModal('modalEditDoctor')" class="flex items-center gap-2 bg-[#10b981] text-white px-5 py-3.5 rounded-xl text-sm font-bold shadow-md hover:bg-emerald-600 transition-colors ml-auto"><i data-lucide="pencil" class="w-4 h-4"></i> Edit Profile</button>
+                }
+            </div>
+        </div>
+
+    </div>
+</div>
+
+ 
+<div id="modalEmail" class="hidden fixed inset-0 z-[100] flex items-center justify-center">
+    <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onclick="toggleModal('modalEmail')"></div>
+    <div class="relative bg-white w-full max-w-md mx-6 rounded-[2rem] p-8 shadow-2xl animate-in zoom-in duration-200">
+        <button type="button" onclick="toggleModal('modalEmail')" class="absolute top-6 right-6 text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-6 h-6"></i></button>
+        <h4 class="text-xl font-black text-slate-900 mb-6">Update Information</h4>
+        <form action="/Admin/UpdateEmail" method="post" class="space-y-4" onsubmit="return validateEmail(this);">
+            <p class="text-sm font-bold text-slate-700">Email Id <span id="emailError" class="text-red-500 text-xs ml-2"></span></p>
+            <input type="email" name="email" value="@user?.Email" required autocomplete="off" class="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 placeholder-slate-400 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm hover:border-slate-300">
+            <div class="flex gap-3 pt-4">
+                <button type="button" onclick="toggleModal('modalEmail')" class="flex-1 py-4 text-slate-600 font-bold bg-slate-100 rounded-xl hover:bg-slate-200 transition-colors">Cancel</button>
+                <button type="submit" class="flex-1 py-4 text-white font-bold bg-[#10b981] rounded-xl hover:bg-emerald-600 shadow-md transition-colors">Submit</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+ 
+<div id="modalPassword" class="hidden fixed inset-0 z-[100] flex items-center justify-center">
+    <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onclick="toggleModal('modalPassword')"></div>
+    <div class="relative bg-white w-full max-w-md mx-6 rounded-[2rem] p-8 shadow-2xl animate-in zoom-in duration-200">
+        <button type="button" onclick="toggleModal('modalPassword')" class="absolute top-6 right-6 text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-6 h-6"></i></button>
+        <h4 class="text-xl font-black text-slate-900 mb-6">Password Settings</h4>
+        <form action="/Admin/ChangePassword" method="post" class="space-y-4" onsubmit="return validatePassword(this);">
+            <div>
+                <p class="text-sm font-bold text-slate-700 mb-2">User Name</p>
+                <input type="text" readonly value="@user?.Uname" class="w-full px-5 py-3.5 bg-slate-100 border border-slate-200 rounded-xl text-sm font-semibold text-slate-500 outline-none shadow-inner cursor-not-allowed">
+            </div>
+            <div>
+                <p class="text-sm font-bold text-slate-700 mb-2">New Password <span id="pwdError1" class="text-red-500 text-xs ml-2"></span></p>
+                <input type="password" name="newPassword" id="npassword" required class="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 placeholder-slate-400 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm hover:border-slate-300">
+            </div>
+            <div>
+                <p class="text-sm font-bold text-slate-700 mb-2">Re Enter Password <span id="pwdError2" class="text-red-500 text-xs ml-2"></span></p>
+                <input type="password" id="cpassword" required class="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 placeholder-slate-400 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm hover:border-slate-300">
+            </div>
+            <div class="flex gap-3 pt-4">
+                <button type="button" onclick="toggleModal('modalPassword')" class="flex-1 py-4 text-slate-600 font-bold bg-slate-100 rounded-xl hover:bg-slate-200 transition-colors">Cancel</button>
+                <button type="submit" class="flex-1 py-4 text-white font-bold bg-[#10b981] rounded-xl hover:bg-emerald-600 shadow-md transition-colors">Submit</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+ 
+@if(showProfileEdit) {
+<div id="modalEditDoctor" class="hidden fixed inset-0 z-[100] flex items-center justify-center">
+    <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onclick="toggleModal('modalEditDoctor')"></div>
+    <div class="relative bg-white w-full max-w-3xl max-h-[90vh] overflow-y-auto mx-6 rounded-[2rem] p-8 shadow-2xl animate-in zoom-in duration-200">
+        <button type="button" onclick="toggleModal('modalEditDoctor')" class="absolute top-6 right-6 text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-6 h-6"></i></button>
+        <h4 class="text-xl font-black text-slate-900 mb-6 flex items-center gap-2"><i data-lucide="pencil"></i> Edit Doctor</h4>
+        
+        <form action="/Admin/EditDoctor" method="post" enctype="multipart/form-data" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <input type="hidden" name="Drid" value="@doctor?.Drid" />
+            <input type="hidden" name="Roleid" value="@user?.Roleid" />
+
+            <div>
+                <p class="text-xs font-bold text-slate-700 mb-1">District</p>
+                <select id="ddlEdDistrict" name="Did" required class="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm hover:border-slate-300">
+                    <option value="">--Select District--</option>
+                    @if(ViewBag.Districts != null) {
+                        foreach(var d in ViewBag.Districts) {
+                            <option value="@d.Did" selected="@(d.Did == doctor?.Did)">@d.Dname</option>
+                        }
+                    }
+                </select>
+            </div>
+            
+            <div>
+                <p class="text-xs font-bold text-slate-700 mb-1">Location</p>
+                <select id="ddlEdlocation" name="Cid" required class="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm hover:border-slate-300">
+                    <option value="@doctor?.Cid">@doctor?.Location?.Cname</option>
+                </select>
+            </div>
+
+            <div>
+                <p class="text-xs font-bold text-slate-700 mb-1">Department</p>
+                <select name="Depid" required class="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm hover:border-slate-300">
+                    <option value="">--Select Department--</option>
+                    @if(ViewBag.Departments != null) {
+                        foreach(var dep in ViewBag.Departments) {
+                            <option value="@dep.Depid" selected="@(dep.Depid == doctor?.Depid)">@dep.Depname</option>
+                        }
+                    }
+                </select>
+            </div>
+
+            <div>
+                <p class="text-xs font-bold text-slate-700 mb-1">Dr Name</p>
+                <input type="text" name="Drname" value="@doctor?.Drname" required class="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm hover:border-slate-300">
+            </div>
+
+                <div class="mb-4">
+                    <label class="block text-slate-700 text-sm font-bold mb-2">Designation</label>
+                    <input type="text" name="designation" value="@doctor?.Designation" id="editDesignation" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-slate-700 text-sm font-bold mb-2">Consultation Fee (₹)</label>
+                    <input type="number" name="cfee" id="editCfee" value="@doctor?.cfee" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-500" placeholder="e.g. 300" min="0">
+                </div>
+
+            <div class="col-span-1 md:col-span-2">
+                <p class="text-xs font-bold text-slate-700 mb-1">Address</p>
+                <textarea name="Address" rows="2" class="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm hover:border-slate-300">@doctor?.Address</textarea>
+            </div>
+
+            <div class="col-span-1 md:col-span-2">
+                <p class="text-xs font-bold text-slate-700 mb-1">Working Hospital</p>
+                <input type="text" name="WorkingHospital" value="@doctor?.WorkingHospital" class="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm hover:border-slate-300">
+            </div>
+
+            <div class="col-span-1 md:col-span-2">
+                <p class="text-xs font-bold text-slate-700 mb-1">UniqueId for Whatsapp <span id="messageid" class="ml-2 font-black text-[10px]"></span></p>
+                <input type="text" name="Drcode" id="txtWhtsapid" value="@user?.Drcode" required class="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm hover:border-slate-300">
+            </div>
+
+            <div>
+                <p class="text-xs font-bold text-slate-700 mb-1">Email</p>
+                <input type="email" name="Email" value="@user?.Email" required class="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm hover:border-slate-300">
+            </div>
+
+            <div>
+                <p class="text-xs font-bold text-slate-700 mb-1">Mobile (Password)</p>
+                <input type="text" name="Mob1" value="@doctor?.Mob1" required class="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm hover:border-slate-300">
+            </div>
+
+            <div class="col-span-1 md:col-span-2 flex items-center gap-6 mt-4">
+                <img id="imgdred" src="@(!string.IsNullOrEmpty(doctor?.Photo) ? "/images/" + doctor.Photo : "https://ui-avatars.com/api/?name=Dr&background=f1f5f9")" class="w-24 h-24 rounded-2xl object-cover border border-slate-200">
+                <div class="flex-1">
+                    <p class="text-xs font-bold text-slate-700 mb-2">Photo</p>
+                    <input type="file" name="PhotoFile" accept="image/*" onchange="showPreview(this)" class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                </div>
+            </div>
+
+            <div class="col-span-1 md:col-span-2 flex justify-end gap-3 pt-6 mt-4 border-t border-slate-100">
+                <button type="button" onclick="toggleModal('modalEditDoctor')" class="px-6 py-3 text-slate-600 font-bold bg-slate-100 rounded-xl hover:bg-slate-200 transition-colors">Cancel</button>
+                <button type="submit" class="px-8 py-3 text-white font-bold bg-[#10b981] rounded-xl hover:bg-emerald-600 shadow-md transition-colors">Submit</button>
+            </div>
+        </form>
+    </div>
+</div>
+}
+
+@section Scripts {
+<script>
+    function toggleModal(id) {
+        const modal = document.getElementById(id);
+        if(modal) modal.classList.toggle('hidden');
+    }
+
+    function validateEmail(form) {
+        const email = form.email.value;
+        const filter = /^([a-zA-Z0-9_\.\-])+\@@(([a-zA-Z0-9\-])+\.)+([a-zA-Z0-9]{2,4})+$/;
+        if (!filter.test(email)) {
+            document.getElementById('emailError').innerText = 'Invalid format';
+            return false;
+        }
+        return true;
+    }
+
+    function validatePassword(form) {
+        if(form.npassword.value !== form.cpassword.value) {
+            document.getElementById('pwdError2').innerText = 'Passwords do not match';
+            return false;
+        }
+        return true;
+    }
+
+    function showPreview(input) {
+        if (input.files && input.files[0]) {
+            var reader = new FileReader();
+            reader.onload = function (e) {
+                document.getElementById('imgdred').src = e.target.result;
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+  
+    const ddDistrict = document.getElementById('ddlEdDistrict');
+    const ddLocation = document.getElementById('ddlEdlocation');
+    if (ddDistrict && ddLocation) {
+        ddDistrict.addEventListener('change', async function() {
+            const did = this.value;
+            ddLocation.innerHTML = '<option value="">--Select Location--</option>';
+            if(did) {
+                const res = await fetch(`/Home/GetLocations?did=${did}`);
+                const data = await res.json();
+                data.forEach(l => {
+                    ddLocation.innerHTML += `<option value="${l.id}">${l.name}</option>`;
+                });
+            }
+        });
+    }
+
+     
+    const txtWhtsapid = document.getElementById('txtWhtsapid');
+    const messageid = document.getElementById('messageid');
+    if (txtWhtsapid) {
+        txtWhtsapid.addEventListener('blur', async function() {
+            const username = this.value.trim();
+            if(username) {
+                const res = await fetch("/Admin/CheckWhatsapid", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username: username })
+                });
+                const isAvailable = await res.json();
+                if(isAvailable) {
+                    messageid.textContent = "Id Available";
+                    messageid.className = "ml-2 font-black text-[10px] text-emerald-500 uppercase";
+                    txtWhtsapid.classList.remove('border-red-500');
+                } else {
+                    messageid.textContent = "Id NOT Available";
+                    messageid.className = "ml-2 font-black text-[10px] text-red-500 uppercase";
+                    txtWhtsapid.classList.add('border-red-500');
+                }
+            }
+        });
+        
+  
+        txtWhtsapid.addEventListener('keydown', function(e) {
+            if (e.keyCode === 32) e.preventDefault();
+        });
+    }
+</script>
+}

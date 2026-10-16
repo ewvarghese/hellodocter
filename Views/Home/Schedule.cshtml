@@ -1,0 +1,427 @@
+﻿@model HelloDoctor.Care.Models.Doctor
+@{
+    ViewData["Title"] = "Schedule Appointment";
+}
+
+<style>
+    /* Decorative Background */
+    .ambient-bg {
+        position: fixed;
+        inset: 0;
+        z-index: -10;
+        background-color: #ffffff;
+        background-image: radial-gradient(at 100% 0%, hsla(23, 89%, 54%, 0.08) 0px, transparent 50%), radial-gradient(at 0% 100%, hsla(215, 100%, 60%, 0.05) 0px, transparent 50%);
+    }
+
+    .grid-pattern {
+        position: fixed;
+        inset: 0;
+        z-index: -10;
+        background-size: 40px 40px;
+        background-image: linear-gradient(to right, rgba(0, 0, 0, 0.02) 1px, transparent 1px), linear-gradient(to bottom, rgba(0, 0, 0, 0.02) 1px, transparent 1px);
+        mask-image: linear-gradient(to bottom, transparent, black, transparent);
+        -webkit-mask-image: linear-gradient(to bottom, transparent, black, transparent);
+    }
+
+    /* Calendar specific styles */
+    .calendar-day {
+        aspect-ratio: 1 / 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.125rem;
+        font-weight: 900;
+        border-radius: 0.75rem;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        cursor: pointer;
+        width: 100%;
+    }
+
+        .calendar-day.selected {
+            background-color: #f26522 !important;
+            color: white !important;
+            border-color: #f26522 !important;
+            box-shadow: 0 10px 15px -3px rgba(242, 101, 34, 0.3) !important;
+            transform: scale(1.05);
+        }
+</style>
+
+<!-- Backgrounds -->
+<div class="ambient-bg"></div>
+<div class="grid-pattern"></div>
+
+<main class="max-w-5xl mx-auto px-4 sm:px-6 py-10 relative z-10">
+
+    <!-- Doctor Hero Card -->
+    <section class="relative bg-white/80 backdrop-blur-xl border border-slate-200/60 rounded-[2.5rem] p-8 md:p-10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] mb-10 overflow-hidden animate-in slide-in-from-top-8 duration-700">
+        <!-- Abstract shape decoration inside card -->
+        <div class="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-orange-100 to-transparent rounded-full blur-3xl -mr-20 -mt-20 opacity-60 pointer-events-none"></div>
+
+        <div class="flex flex-col md:flex-row items-center gap-8 relative z-10">
+            <div class="relative shrink-0">
+                <div class="w-28 h-28 md:w-36 md:h-36 rounded-[2rem] overflow-hidden border-[4px] border-white shadow-xl bg-slate-50">
+                    <img src="@(!string.IsNullOrEmpty(Model.Photo) ? "/images/" + Model.Photo : "https://ui-avatars.com/api/?name=Dr&background=fff7ed&color=f26522&size=400")" class="w-full h-full object-cover">
+                </div>
+                <div class="absolute -bottom-3 -right-3 bg-white p-2 rounded-2xl shadow-lg">
+                    <div class="bg-emerald-100 text-emerald-600 w-8 h-8 rounded-xl flex items-center justify-center">
+                        <i data-lucide="check-circle" class="w-5 h-5"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="text-center md:text-left flex-1">
+                <nav class="flex items-center justify-center md:justify-start gap-2 text-xs font-black text-slate-400 uppercase tracking-widest mb-3">
+                    <a href="/Home/Booking?did=@Model.Did" class="hover:text-[#f26522] transition-colors">Doctors</a>
+                    <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+                    <span class="text-slate-600">Schedule</span>
+                </nav>
+                <h1 class="text-3xl md:text-4xl font-black text-slate-900 tracking-tight mb-2">
+                   @Model.Drname
+                    @if (!string.IsNullOrEmpty(Model.Designation))
+                    {
+                        <span class="text-lg sm:text-xl md:text-3xl text-slate-500 font-bold block md:inline md:ml-2 mt-1 md:mt-0 align-baseline">@Model.Designation</span>
+                    }
+                </h1>
+                <p class="text-[#f26522] font-bold text-lg mb-4">@Model.Department?.Depname Specialist</p>
+                <div class="flex flex-wrap items-center justify-center md:justify-start gap-3 text-sm font-semibold text-slate-500">
+                    <span class="bg-white/80 border border-slate-200 px-4 py-2 rounded-xl flex items-center gap-2 shadow-sm">
+                        <i data-lucide="map-pin" class="w-4 h-4 text-[#f26522]"></i> @Model.Location?.Cname
+                    </span>
+                    <span class="bg-white/80 border border-slate-200 px-4 py-2 rounded-xl flex items-center gap-2 shadow-sm">
+                        <i data-lucide="indian-rupee" class="w-4 h-4 text-[#f26522]"></i> @(Model.cfee ?? 300) / Visit
+                    </span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="grid lg:grid-cols-12 gap-8">
+
+        <!-- Left Column: Calendar & Slots -->
+        <div class="lg:col-span-7 space-y-8">
+
+            <!-- Calendar Card -->
+            <div class="bg-white/90 backdrop-blur-xl border border-white/40 rounded-[2.5rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.06)] animate-in slide-in-from-left-8 duration-700">
+                <div class="flex items-center justify-between mb-8">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center shrink-0 border border-orange-100/50">
+                            <i data-lucide="calendar-days" class="w-5 h-5 text-[#f26522]"></i>
+                        </div>
+                        <h3 class="font-black text-slate-900 text-xl" id="calendarMonthTitle">Month Year</h3>
+                    </div>
+                    <div class="flex gap-2">
+                        <button type="button" onclick="changeMonth(-1)" class="p-2.5 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-xl border border-slate-200 shadow-sm transition-colors"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
+                        <button type="button" onclick="changeMonth(1)" class="p-2.5 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-xl border border-slate-200 shadow-sm transition-colors"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
+                    </div>
+                </div>
+                <div class="grid grid-cols-7 gap-2 text-center text-xs sm:text-sm font-black text-slate-500 uppercase tracking-widest mb-4">
+                    <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+                </div>
+                <div class="grid grid-cols-7 gap-2" id="calendarGrid"></div>
+
+                <div class="flex flex-wrap items-center gap-4 mt-6 pt-6 border-t border-slate-100 text-xs font-bold text-slate-500 justify-center">
+                    <div class="flex items-center gap-2"><div class="w-3 h-3 rounded-md bg-orange-50 border border-orange-200"></div> Today</div>
+                    <div class="flex items-center gap-2"><div class="w-3 h-3 rounded-md bg-emerald-50 border border-emerald-200"></div> Available</div>
+                    <div class="flex items-center gap-2"><div class="w-3 h-3 rounded-md bg-red-50 border border-red-200 flex items-center justify-center"><div class="w-full h-px bg-red-400 transform -rotate-45"></div></div> On Leave</div>
+                    <div class="flex items-center gap-2"><div class="w-3 h-3 rounded-md bg-slate-50 border border-slate-100"></div> Unavailable</div>
+                </div>
+            </div>
+
+            <!-- Slots Card -->
+            <div id="slotContainer" class="hidden animate-in fade-in slide-in-from-top-4 duration-500 bg-white/90 backdrop-blur-xl border border-white/40 rounded-[2.5rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.06)]">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center shrink-0 border border-orange-100/50">
+                        <i data-lucide="clock" class="w-5 h-5 text-[#f26522]"></i>
+                    </div>
+                    <h3 class="font-bold text-slate-900 text-lg">Available Slots for <span id="selectedDateLabel" class="text-[#f26522]">--</span></h3>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3" id="slotGrid"></div>
+            </div>
+
+        </div>
+
+        <!-- Right Column: Patient Form -->
+        <div class="lg:col-span-5">
+            <div class="bg-white/90 backdrop-blur-xl border border-white/40 rounded-[2.5rem] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.06)] sticky top-24 animate-in slide-in-from-right-8 duration-700">
+                <div class="flex items-center gap-3 mb-6 border-b border-slate-100 pb-6">
+                    <div class="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center shrink-0 border border-orange-100/50">
+                        <i data-lucide="clipboard-edit" class="w-5 h-5 text-[#f26522]"></i>
+                    </div>
+                    <h3 class="text-xl font-black text-slate-900">Patient Details</h3>
+                </div>
+
+                <form action="/Home/BookAppointment" method="post" onsubmit="handleFinalBooking(event)" class="space-y-5">
+                    <input type="hidden" name="Drid" value="@ViewBag.UserId" />
+                    <input type="hidden" name="Depid" value="@ViewBag.DepId" />
+                    <input type="hidden" id="hiddenDate" name="Aptmtdate" />
+                    <input type="hidden" id="hiddenDay" name="Aptmtday" />
+                    <input type="hidden" id="hiddenSlotId" name="Slotdtid" />
+                    <input type="hidden" id="hiddenSlotTime" name="Frmtymdt" />
+                    <input type="hidden" name="PaymentRequired" value="@(ViewBag.PaymentRequired ? "true" : "false")" />
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 ml-1">Patient Name</label>
+                        <input required type="text" name="Pname" id="pname" placeholder="Enter full name" class="w-full px-5 py-3.5 bg-slate-50/50 border border-slate-200 rounded-2xl text-sm font-semibold text-slate-800 placeholder-slate-400 outline-none focus:bg-white focus:border-[#f26522] focus:ring-4 focus:ring-[#f26522]/10 transition-all hover:border-slate-300">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 ml-1">Whatsapp / Mobile</label>
+                        <input required type="tel" name="Mobnum" id="pmobile" placeholder="e.g. 9876543210" class="w-full px-5 py-3.5 bg-slate-50/50 border border-slate-200 rounded-2xl text-sm font-semibold text-slate-800 placeholder-slate-400 outline-none focus:bg-white focus:border-[#f26522] focus:ring-4 focus:ring-[#f26522]/10 transition-all hover:border-slate-300">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 ml-1">Age</label>
+                            <input required type="number" name="Age" id="page" placeholder="22" min="1" max="120" class="w-full px-5 py-3.5 bg-slate-50/50 border border-slate-200 rounded-2xl text-sm font-semibold text-slate-800 placeholder-slate-400 outline-none focus:bg-white focus:border-[#f26522] focus:ring-4 focus:ring-[#f26522]/10 transition-all hover:border-slate-300">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 ml-1">Place</label>
+                            <input required type="text" name="Addr" id="paddr" placeholder="City/Area" class="w-full px-5 py-3.5 bg-slate-50/50 border border-slate-200 rounded-2xl text-sm font-semibold text-slate-800 placeholder-slate-400 outline-none focus:bg-white focus:border-[#f26522] focus:ring-4 focus:ring-[#f26522]/10 transition-all hover:border-slate-300">
+                        </div>
+                    </div>
+
+                    <div class="pt-4">
+                        @if (ViewBag.PaymentRequired)
+                        {
+                            <div class="mb-4 p-4 bg-orange-50 border border-orange-100 rounded-2xl flex items-start gap-3">
+                                <i data-lucide="shield-check" class="w-5 h-5 text-[#f26522] shrink-0 mt-0.5"></i>
+                                <div>
+                                    <p class="text-sm font-bold text-slate-800">Secure Payment</p>
+                                    <p class="text-xs font-medium text-slate-500 mt-1">A consultation fee of ₹10 is required to confirm this booking.</p>
+                                </div>
+                            </div>
+                            <button type="submit" id="btnSavePay" class="w-full bg-gradient-to-r from-[#f26522] to-[#e05615] hover:from-[#d95318] hover:to-[#c64810] text-white px-5 py-4 rounded-2xl font-bold shadow-[0_8px_20px_-4px_rgba(242,101,34,0.4)] hover:shadow-[0_12px_25px_-4px_rgba(242,101,34,0.5)] transform hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 text-base border border-orange-500/20">
+                                Save & Pay Securely <i data-lucide="lock" class="w-4 h-4"></i>
+                            </button>
+                        }
+                        else
+                        {
+                            <button type="submit" id="btnSubmit" class="w-full bg-gradient-to-r from-[#f26522] to-[#e05615] hover:from-[#d95318] hover:to-[#c64810] text-white px-5 py-4 rounded-2xl font-bold shadow-[0_8px_20px_-4px_rgba(242,101,34,0.4)] hover:shadow-[0_12px_25px_-4px_rgba(242,101,34,0.5)] transform hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 text-base border border-orange-500/20">
+                                Confirm Booking <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                            </button>
+                        }
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</main>
+
+@section Scripts {
+    <script>
+        let drid = @ViewBag.UserId;
+        let currentDisplayDate = new Date();
+        let config = { workingDays: [], leaves: [], dayLimit: 30, hourNotice: 1, serverToday: null };
+        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        const monthMap = { "jan": 0, "feb": 1, "mar": 2, "apr": 3, "may": 4, "jun": 5, "jul": 6, "aug": 7, "sep": 8, "oct": 9, "nov": 10, "dec": 11 };
+
+        let isInitialLoad = true;
+
+        function parseLeaveDate(ds) {
+            if (!ds) return 0;
+            ds = ds.toString().trim(); 
+            let parts = ds.split('-');
+            if (parts.length === 3) {
+                return new Date(parseInt(parts[2]), monthMap[parts[1].toLowerCase()], parseInt(parts[0])).getTime();
+            }
+            let fallback = new Date(ds);
+            fallback.setHours(0, 0, 0, 0);
+            return fallback.getTime();
+        }
+
+        async function fetchConfig() {
+            try {
+                const res = await fetch(`/Home/GetAvailableDates?drid=${drid}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    config.workingDays = (data.workingDays || []).map(d => (d || '').trim().toLowerCase());
+                    config.leaves = data.leaves || [];
+                    config.dayLimit = data.dayLimit > 0 ? data.dayLimit : 30;
+                    config.hourNotice = (data.hourNotice !== undefined && data.hourNotice !== null) ? data.hourNotice : 1;
+
+                    if (data.serverToday) {
+                        const parts = data.serverToday.split('-');
+                        config.serverToday = new Date(parts[0], parts[1] - 1, parts[2]);
+                        currentDisplayDate = new Date(config.serverToday);
+                    }
+                }
+            } catch (err) {
+                console.error("Config load failed.", err);
+            }
+            renderCalendar();
+        }
+
+        function renderCalendar() {
+            const grid = document.getElementById('calendarGrid');
+            const month = currentDisplayDate.getMonth();
+            const year = currentDisplayDate.getFullYear();
+            document.getElementById('calendarMonthTitle').textContent = `${monthNames[month]} ${year}`;
+            grid.innerHTML = '';
+
+            const today = config.serverToday ? new Date(config.serverToday) : new Date(new Date().setHours(0, 0, 0, 0));
+            const limitDate = new Date(today);
+            limitDate.setDate(today.getDate() + config.dayLimit);
+
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+            for (let i = 0; i < firstDay; i++) grid.innerHTML += '<div class="calendar-day border border-transparent"></div>';
+
+            let todayBtnToClick = null;
+            let firstAvailableBtnToClick = null;
+
+            for (let d = 1; d <= daysInMonth; d++) {
+                const dateObj = new Date(year, month, d);
+                const dTime = dateObj.getTime();
+                const btn = document.createElement('button');
+                btn.type = "button";
+                btn.className = "calendar-day border shadow-sm transition-all";
+                btn.textContent = d;
+
+                const isPast = dateObj < today;
+                const isTooFar = dateObj > limitDate;
+                const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+                const worksThisDay = config.workingDays.length === 0 || config.workingDays.includes(dayName);
+
+                const onLeave = config.leaves.some(l => {
+                  
+                    const frmStr = l.frmdt || l.Frmdt;
+                    const todStr = l.todt || l.Todt || frmStr;
+                    return dTime >= parseLeaveDate(frmStr) && dTime <= parseLeaveDate(todStr);
+                });
+
+                if (isPast || !worksThisDay) {
+                    btn.classList.add('bg-slate-50', 'text-slate-400', 'cursor-not-allowed', 'border-transparent', 'shadow-none');
+                    btn.disabled = true;
+                }
+                else if (onLeave) {
+                    btn.classList.add('bg-red-50', 'text-red-500', 'border-red-200', 'cursor-not-allowed', 'shadow-sm', 'relative', 'overflow-hidden');
+                    btn.disabled = true;
+                    const overlay = document.createElement('div');
+                    overlay.className = "absolute inset-0 flex items-center justify-center pointer-events-none";
+                    overlay.innerHTML = '<div class="w-full h-px bg-red-400 transform -rotate-45"></div>';
+                    btn.appendChild(overlay);
+                }
+                else if (isTooFar) {
+                    btn.classList.add('bg-slate-100', 'text-slate-400', 'cursor-not-allowed', 'border-transparent', 'shadow-none');
+                    btn.disabled = true;
+                }
+                else {
+                    btn.onclick = () => selectDate(btn, d, month, year);
+                    if (!firstAvailableBtnToClick) firstAvailableBtnToClick = btn;
+
+                    if (dateObj.getTime() === today.getTime()) {
+                        btn.classList.add('bg-orange-50', 'text-[#f26522]', 'border-orange-200', 'hover:bg-orange-100', 'hover:border-[#f26522]');
+                        todayBtnToClick = btn;
+                    } else {
+                        btn.classList.add('bg-emerald-50', 'text-emerald-700', 'border-emerald-200', 'hover:bg-emerald-100', 'hover:text-emerald-800', 'hover:border-emerald-400');
+                    }
+                }
+                grid.appendChild(btn);
+            }
+
+          
+            if (isInitialLoad) {
+                isInitialLoad = false;
+                if (todayBtnToClick) {
+                    todayBtnToClick.click();
+                } else if (firstAvailableBtnToClick) {
+                    firstAvailableBtnToClick.click();
+                }
+            }
+
+            lucide.createIcons();
+        }
+
+        function changeMonth(delta) {
+            currentDisplayDate.setMonth(currentDisplayDate.getMonth() + delta);
+            renderCalendar();
+        }
+
+        async function selectDate(el, day, month, year) {
+            document.querySelectorAll('.calendar-day').forEach(d => d.classList.remove('selected'));
+            el.classList.add('selected');
+
+            const dateStr = `${year}-${month + 1}-${day}`;
+            document.getElementById('selectedDateLabel').textContent = `${day} ${monthNames[month]}`;
+
+            const formattedDate = `${day.toString().padStart(2, '0')}-${monthNames[month].substring(0, 3)}-${year}`;
+            const dObj = new Date(year, month, day);
+
+            document.getElementById('hiddenDate').value = formattedDate;
+            document.getElementById('hiddenDay').value = dObj.toLocaleDateString('en-US', { weekday: 'long' });
+
+            const res = await fetch(`/Home/GetSlots?drid=${drid}&date=${dateStr}`);
+            let slots = await res.json();
+
+         
+            const todayCheck = config.serverToday ? new Date(config.serverToday) : new Date();
+            if (year === todayCheck.getFullYear() && month === todayCheck.getMonth() && day === todayCheck.getDate()) {
+                const nowIST = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+                slots = slots.filter(s => {
+                    try {
+                        const startTimeStr = s.frmtymdt.split('-')[0].trim();
+                        const timeMatch = startTimeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
+                        if (timeMatch) {
+                            let hours = parseInt(timeMatch[1], 10);
+                            const minutes = parseInt(timeMatch[2], 10);
+                            const modifier = timeMatch[3].toUpperCase();
+
+                            if (modifier === 'PM' && hours < 12) hours += 12;
+                            if (modifier === 'AM' && hours === 12) hours = 0;
+
+                            const slotTime = new Date(nowIST.getTime());
+                            slotTime.setHours(hours, minutes, 0, 0);
+
+                            const noticeMs = config.hourNotice * 60 * 60 * 1000;
+                            return (slotTime.getTime() - nowIST.getTime()) >= noticeMs;
+                        }
+                    } catch (e) { console.error(e); }
+                    return true;
+                });
+            }
+
+            const sGrid = document.getElementById('slotGrid');
+            sGrid.innerHTML = '';
+
+            if (slots.length === 0) {
+                sGrid.innerHTML = `
+                                        <div class="col-span-2 sm:col-span-3 bg-red-50 border border-red-100 rounded-2xl p-4 flex flex-col items-center justify-center text-center">
+                                            <i data-lucide="calendar-x" class="w-6 h-6 text-red-400 mb-2"></i>
+                                            <p class="text-sm text-red-600 font-bold">No slots available</p>
+                                            <p class="text-xs text-red-500 font-medium">Please select a different date.</p>
+                                        </div>`;
+                lucide.createIcons();
+            } else {
+                slots.forEach(s => {
+                    const b = document.createElement('button');
+                    b.type = "button";
+
+                    b.className = "slot-pill py-3 px-4 border-2 border-slate-200 bg-white text-slate-600 rounded-xl text-sm font-bold hover:border-[#f26522] hover:text-[#f26522] transition-all shadow-sm flex items-center justify-center";
+                    b.textContent = s.frmtymdt;
+                    b.onclick = () => {
+                        document.querySelectorAll('.slot-pill').forEach(p => {
+                            p.classList.remove('bg-[#f26522]', 'text-white', 'border-[#f26522]', 'shadow-md', 'hover:text-white');
+                            p.classList.add('bg-white', 'text-slate-600', 'border-slate-200', 'hover:text-[#f26522]');
+                        });
+                        b.classList.remove('bg-white', 'text-slate-600', 'border-slate-200', 'hover:text-[#f26522]');
+                        b.classList.add('bg-[#f26522]', 'text-white', 'border-[#f26522]', 'shadow-md', 'hover:text-white');
+                        document.getElementById('hiddenSlotId').value = s.slotdtid;
+                        document.getElementById('hiddenSlotTime').value = s.frmtymdt;
+                    };
+                    sGrid.appendChild(b);
+                });
+            }
+
+            document.getElementById('slotContainer').classList.remove('hidden');
+        }
+
+        function handleFinalBooking(e) {
+            if (!document.getElementById('hiddenSlotId').value) {
+                e.preventDefault();
+                showToast("Please select an available time slot.", "error");
+            }
+        }
+
+        window.addEventListener('load', fetchConfig);
+    </script>
+}
