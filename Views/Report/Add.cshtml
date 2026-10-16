@@ -1,0 +1,127 @@
+@{
+    ViewData["Title"] = "Add Patient Report";
+    var apt = ViewBag.Appointment as HelloDoctor.Care.Models.Appointment;
+    int? prefillDoctorId = null;
+    if (ViewBag.PrefillDoctorId != null) { prefillDoctorId = ViewBag.PrefillDoctorId; }
+    string prefillVisitDate = ViewBag.PrefillVisitDate != null ? (string)ViewBag.PrefillVisitDate : null;
+}
+
+<div class="w-full flex-grow flex flex-col py-6 px-2">
+    <div class="max-w-4xl mx-auto w-full space-y-8 animate-in fade-in duration-500">
+
+        <div class="flex items-center justify-between">
+            <h3 class="text-2xl font-black text-slate-800 flex items-center gap-3">
+                <i data-lucide="file-plus" class="text-[#f26522]"></i> Add Patient Report
+            </h3>
+            <a href="@(apt != null ? "/Report/Index" : "/Report/MedicalReports")" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-3 rounded-xl font-bold transition-colors flex items-center gap-2">
+                <i data-lucide="arrow-left" class="w-5 h-5"></i> Back
+            </a>
+        </div>
+
+        @if (TempData["ErrorMsg"] != null) {
+            <div class="bg-red-50 border border-red-200 text-red-600 px-6 py-4 rounded-xl font-bold flex items-center gap-3">
+                <i data-lucide="alert-circle" class="w-5 h-5"></i> @TempData["ErrorMsg"]
+            </div>
+        }
+
+        @if (apt != null) {
+            <div class="bg-sky-50 border border-sky-200 rounded-2xl px-6 py-4 text-sky-800 font-semibold flex items-center gap-3">
+                <i data-lucide="info" class="w-5 h-5"></i>
+                Creating report for appointment of <strong>@apt.Pname</strong> (@apt.Aptmtdate)
+            </div>
+        }
+
+        <form action="/Report/Add" method="post" enctype="multipart/form-data" class="space-y-6">
+            @if (apt != null) {
+                <input type="hidden" name="aptmtid" value="@apt.Aptmtid" />
+            }
+
+            <div class="bg-white border border-slate-200 rounded-[2rem] p-8 shadow-sm space-y-6">
+                <p class="text-xs font-black text-slate-400 uppercase tracking-widest">Patient & Doctor</p>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                        <label class="text-xs font-black text-slate-500 uppercase tracking-widest">Patient Name *</label>
+                        <input type="text" name="Pname" required value="@(apt != null ? apt.Pname : "")"
+                               class="w-full mt-2 px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-[#f26522] focus:ring-4 focus:ring-[#f26522]/10 transition-all">
+                    </div>
+                    <div>
+                        <label class="text-xs font-black text-slate-500 uppercase tracking-widest">Mobile</label>
+                        <input type="text" name="Mobnum" value="@(apt != null ? apt.Mobnum : "")"
+                               class="w-full mt-2 px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-[#f26522] focus:ring-4 focus:ring-[#f26522]/10 transition-all">
+                    </div>
+                    <div>
+                        <label class="text-xs font-black text-slate-500 uppercase tracking-widest">Age</label>
+                        <input type="text" name="Age" value="@(apt?.Age?.ToString() ?? "")"
+                               class="w-full mt-2 px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-[#f26522] focus:ring-4 focus:ring-[#f26522]/10 transition-all">
+                    </div>
+                    <div>
+                        <label class="text-xs font-black text-slate-500 uppercase tracking-widest">Visit Date</label>
+                        <input type="text" name="Visitdate" placeholder="dd-MMM-yyyy (e.g. 16-Oct-2026)"
+                               value="@(apt != null ? prefillVisitDate : "")"
+                               class="w-full mt-2 px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-[#f26522] focus:ring-4 focus:ring-[#f26522]/10 transition-all">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="text-xs font-black text-slate-500 uppercase tracking-widest">Address</label>
+                        <input type="text" name="Addr" value="@(apt != null ? apt.Addr : "")"
+                               class="w-full mt-2 px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-[#f26522] focus:ring-4 focus:ring-[#f26522]/10 transition-all">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="text-xs font-black text-slate-500 uppercase tracking-widest">Doctor *</label>
+                        <select name="Drid" required
+                                class="w-full mt-2 px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-[#f26522] focus:ring-4 focus:ring-[#f26522]/10 transition-all">
+                            <option value="">-- Select Doctor --</option>
+                            @foreach (var doc in ViewBag.Doctors) {
+                                if (prefillDoctorId == doc.Drid) {
+                                    <option value="@doc.Drid" selected>@doc.Drname</option>
+                                } else {
+                                    <option value="@doc.Drid">@doc.Drname</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-[2rem] p-8 shadow-sm space-y-6">
+                <p class="text-xs font-black text-slate-400 uppercase tracking-widest">Medical Report</p>
+
+                <div>
+                    <label class="text-xs font-black text-slate-500 uppercase tracking-widest">Diagnosis</label>
+                    <textarea name="Diagnosis" rows="3" placeholder="Findings / diagnosis..."
+                              class="w-full mt-2 px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-[#f26522] focus:ring-4 focus:ring-[#f26522]/10 transition-all resize-y"></textarea>
+                </div>
+                <div>
+                    <label class="text-xs font-black text-slate-500 uppercase tracking-widest">Prescription</label>
+                    <textarea name="Prescription" rows="3" placeholder="Medicines / dosage..."
+                              class="w-full mt-2 px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-[#f26522] focus:ring-4 focus:ring-[#f26522]/10 transition-all resize-y"></textarea>
+                </div>
+                <div>
+                    <label class="text-xs font-black text-slate-500 uppercase tracking-widest">Advice / Notes</label>
+                    <textarea name="Advice" rows="3" placeholder="Advice to the patient..."
+                              class="w-full mt-2 px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-[#f26522] focus:ring-4 focus:ring-[#f26522]/10 transition-all resize-y"></textarea>
+                </div>
+            </div>
+
+            <div class="bg-white border border-slate-200 rounded-[2rem] p-8 shadow-sm space-y-4">
+                <p class="text-xs font-black text-slate-400 uppercase tracking-widest">Report Files (PDF / Images)</p>
+                <p class="text-sm text-slate-500 font-semibold">
+                    You can upload lab reports, scans or prescriptions.
+                    Allowed: <strong>PDF, JPG, JPEG, PNG, GIF, WEBP</strong> — max <strong>20 MB</strong> per file.
+                </p>
+                <input type="file" name="Files" multiple accept=".pdf,.jpg,.jpeg,.png,.gif,.webp"
+                       class="w-full mt-2 text-sm text-slate-600 font-semibold file:mr-4 file:px-5 file:py-3 file:rounded-xl file:border-0 file:bg-[#f26522]/10 file:text-[#f26522] file:font-black file:uppercase file:tracking-wider hover:file:bg-[#f26522]/20 transition-colors">
+            </div>
+
+            <div class="flex items-center gap-4">
+                <button type="submit" class="bg-[#10b981] hover:bg-emerald-600 text-white px-8 py-3.5 rounded-xl font-black uppercase tracking-widest shadow-lg transition-colors flex items-center gap-2">
+                    <i data-lucide="save" class="w-5 h-5"></i> Save Report
+                </button>
+                <a href="@(apt != null ? "/Report/Index" : "/Report/MedicalReports")" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-8 py-3.5 rounded-xl font-bold transition-colors">
+                    Cancel
+                </a>
+            </div>
+        </form>
+
+    </div>
+</div>

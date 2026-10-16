@@ -1,0 +1,72 @@
+@{ Layout = null; }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Report - @ViewBag.DoctorName - @ViewBag.DisplayDate</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #333; }
+        h1 { text-align: center; color: #F16622; margin-bottom: 5px; font-size: 28px; font-weight: 800; }
+        h2 { text-align: center; color: #555; margin-top: 0; margin-bottom: 30px; font-size: 16px; font-weight: 600; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #f8f9fa; color: #333; font-weight: bold; text-transform: uppercase; font-size: 12px; }
+        tr:nth-child(even) { background-color: #f9fafb; }
+        .token { font-weight: bold; color: #0284c7; }
+        .has-report { background-color: #d1fae5 !important; }
+        .print-btn { display: block; width: 200px; margin: 0 auto 30px; padding: 10px; text-align: center; background: #10b981; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; border: none; cursor: pointer; }
+        .summary { text-align: center; color: #666; margin-bottom: 10px; font-size: 14px; }
+        @@media print {
+            .print-btn { display: none; }
+            body { padding: 0; }
+        }
+    </style>
+</head>
+<body onload="window.print()">
+    <button class="print-btn" onclick="window.print()">Print / Save as PDF</button>
+
+    <h1>HELLO DOCTOR</h1>
+    <h2>Patient Report &mdash; Dr. @ViewBag.DoctorName</h2>
+    <p class="summary">Date: <strong>@ViewBag.DisplayDate</strong></p>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 6%;">Token</th>
+                <th style="width: 10%;">Slot</th>
+                <th style="width: 22%;">Patient</th>
+                <th style="width: 7%;">Age</th>
+                <th style="width: 12%;">Mobile</th>
+                <th style="width: 23%;">Address</th>
+                <th style="width: 10%;">Date</th>
+                <th style="width: 10%;">Payment</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (ViewBag.VisitRows != null)
+            {
+                int sl = 0;
+                foreach (var row in ViewBag.VisitRows)
+                {
+                    sl++;
+                    <tr>
+                        <td class="token">@row.Token</td>
+                        <td>@row.SlotTime</td>
+                        <td style="font-weight:bold;">@row.PatientName</td>
+                        <td>@row.Age</td>
+                        <td>@row.Mobile</td>
+                        <td>@row.Address</td>
+                        <td>@row.VisitDate</td>
+                        <td>@(row.Payment ? "Paid" : "Pending")</td>
+                    </tr>
+                }
+                if (sl == 0)
+                {
+                    <tr><td colspan="8" style="text-align:center; padding:24px;">No patient visits found.</td></tr>
+                }
+            }
+        </tbody>
+    </table>
+</body>
+</html>

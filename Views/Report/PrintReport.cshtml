@@ -1,0 +1,74 @@
+@model HelloDoctor.Care.Models.PatientReport
+@{ Layout = null; }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medical Report - @Model.Pname</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #333; }
+        h1 { text-align: center; color: #F16622; margin-bottom: 5px; font-size: 28px; font-weight: 800; }
+        h2 { text-align: center; color: #555; margin-top: 0; margin-bottom: 30px; font-size: 16px; font-weight: 600; }
+        .box { border: 1px solid #ddd; border-radius: 8px; padding: 18px; margin-top: 16px; }
+        .box h3 { margin: 0 0 10px 0; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: #F16622; }
+        .box p { margin: 0; white-space: pre-wrap; line-height: 1.6; }
+        .info { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
+        .info th, .info td { border: 1px solid #ddd; padding: 10px 12px; text-align: left; }
+        .info th { background-color: #f8f9fa; width: 18%; text-transform: uppercase; font-size: 12px; }
+        .files { margin-top: 16px; font-size: 14px; }
+        .files li { margin-bottom: 6px; }
+        .print-btn { display: block; width: 200px; margin: 0 auto 30px; padding: 10px; text-align: center; background: #10b981; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; border: none; cursor: pointer; }
+        .footer { margin-top: 40px; display: flex; justify-content: space-between; font-size: 13px; color: #666; }
+        .sign { margin-top: 60px; width: 220px; text-align: center; border-top: 1px solid #999; padding-top: 8px; font-size: 13px; }
+        @@media print {
+            .print-btn { display: none; }
+            body { padding: 0; }
+        }
+    </style>
+</head>
+<body onload="window.print()">
+    <button class="print-btn" onclick="window.print()">Print / Save as PDF</button>
+
+    <h1>HELLO DOCTOR</h1>
+    <h2>Medical Report</h2>
+
+    <table class="info">
+        <tr><th>Patient</th><td><strong>@Model.Pname</strong></td><th>Age</th><td>@(Model.Age ?? "-")</td></tr>
+        <tr><th>Mobile</th><td>@(Model.Mobnum ?? "-")</td><th>Visit Date</th><td>@(Model.Visitdate ?? "-")</td></tr>
+        <tr><th>Doctor</th><td>Dr. @(Model.Doctor?.Drname ?? "-")</td><th>Department</th><td>@(Model.Doctor?.Department?.Depname ?? "-")</td></tr>
+        <tr><th>Address</th><td colspan="3">@(Model.Addr ?? "-")</td></tr>
+    </table>
+
+    <div class="box">
+        <h3>Diagnosis</h3>
+        <p>@(string.IsNullOrWhiteSpace(Model.Diagnosis) ? "-" : Model.Diagnosis)</p>
+    </div>
+    <div class="box">
+        <h3>Prescription</h3>
+        <p>@(string.IsNullOrWhiteSpace(Model.Prescription) ? "-" : Model.Prescription)</p>
+    </div>
+    <div class="box">
+        <h3>Advice / Notes</h3>
+        <p>@(string.IsNullOrWhiteSpace(Model.Advice) ? "-" : Model.Advice)</p>
+    </div>
+
+    @if (Model.Files.Count > 0)
+    {
+        <div class="files">
+            <h3 style="font-size:13px; text-transform:uppercase; letter-spacing:1px; color:#F16622;">Attached Files</h3>
+            <ul>
+                @foreach (var f in Model.Files)
+                {
+                    <li>@f.FileName</li>
+                }
+            </ul>
+        </div>
+    }
+
+    <div class="footer">
+        <div>Report #: @Model.Rptid &nbsp;|&nbsp; Generated on @DateTime.Now.ToString("dd-MMM-yyyy hh:mm tt")</div>
+        <div class="sign">Doctor's Signature</div>
+    </div>
+</body>
+</html>
