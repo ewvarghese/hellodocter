@@ -3,7 +3,7 @@
     var apt = ViewBag.Appointment as HelloDoctor.Care.Models.Appointment;
     int? prefillDoctorId = null;
     if (ViewBag.PrefillDoctorId != null) { prefillDoctorId = ViewBag.PrefillDoctorId; }
-    string prefillVisitDate = ViewBag.PrefillVisitDate != null ? (string)ViewBag.PrefillVisitDate : null;
+    string? prefillVisitDate = ViewBag.PrefillVisitDate != null ? (string)ViewBag.PrefillVisitDate : null;
 }
 
 <div class="w-full flex-grow flex flex-col py-6 px-2">

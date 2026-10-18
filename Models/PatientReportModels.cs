@@ -69,7 +69,7 @@ namespace HelloDoctor.Care.Models
         public string? Mobile { get; set; }
         public string? Age { get; set; }
         public string? Address { get; set; }
-        public int Drid { get; set; }
+        public int? Drid { get; set; }
         public string? DoctorName { get; set; }
         public string? VisitDate { get; set; }
         public string? SlotTime { get; set; }
