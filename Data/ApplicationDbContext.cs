@@ -27,5 +27,8 @@ namespace HelloDoctor.Care.Data
         public DbSet<AdminUser> AdminUsers { get; set; }
         public DbSet<SubscriptionPlan> SubscriptionPlans { get; set; }
         public DbSet<SubscriptionDetail> SubscriptionDetails { get; set; }
+
+        public DbSet<PatientReport> PatientReports { get; set; }
+        public DbSet<PatientReportFile> PatientReportFiles { get; set; }
     }
 }

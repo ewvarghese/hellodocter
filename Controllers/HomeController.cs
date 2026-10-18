@@ -644,5 +644,11 @@ namespace HelloDoctor.Care.Controllers
             if (validNumber.Length == 11 && !validNumber.StartsWith("91")) return "91" + validNumber.Substring(1);
             return "";
         }
+
+        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+        public IActionResult Error()
+        {
+            return View(new ErrorViewModel { RequestId = System.Diagnostics.Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+        }
     }
 }
