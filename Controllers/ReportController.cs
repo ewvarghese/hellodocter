@@ -8,8 +8,8 @@ using System.Globalization;
 namespace HelloDoctor.Care.Controllers
 {
     /// <summary>
-    /// Patient Reports:
-    ///   - Patients-per-doctor report (list + filter + print)
+    /// Doctor-only Patient Reports:
+    ///   - Patient visits list for the logged-in doctor (filterable by date, search, report status + printable)
     ///   - Medical visit reports (diagnosis / prescription / advice)
     ///   - Uploaded report files (PDF / images)
     /// </summary>
@@ -23,6 +23,14 @@ namespace HelloDoctor.Care.Controllers
         private static readonly string[] AllowedExtensions = { ".pdf", ".jpg", ".jpeg", ".png", ".gif", ".webp" };
         private const long MaxFileSize = 20 * 1024 * 1024;
 
+        private sealed class DoctorSession
+        {
+            public int UserId { get; init; }       // tbl_adminuser.userid (stored in tbl_appointment.drid)
+            public int DoctorId { get; init; }     // tbl_doctor.drid (stored in tbl_patientreport.drid)
+            public string DoctorName { get; init; } = "Doctor";
+            public int? DepId { get; init; }
+        }
+
         public ReportController(ApplicationDbContext context, IWebHostEnvironment env)
         {
             _context = context;
@@ -32,6 +40,33 @@ namespace HelloDoctor.Care.Controllers
         private int CurrentUserId()
         {
             return Convert.ToInt32(HttpContext.Session.GetString("userid") ?? "0");
+        }
+
+        private async Task<(DoctorSession? session, IActionResult? redirect)> RequireDoctorAsync()
+        {
+            int userId = CurrentUserId();
+            if (userId == 0)
+                return (null, RedirectToAction("Login", "Auth"));
+
+            var user = await _context.AdminUsers.FindAsync(userId);
+            if (user == null)
+                return (null, RedirectToAction("Login", "Auth"));
+
+            // Patient Report and Medical Reports are available only on the Doctor portal (roles 2 & 3)
+            if ((user.Roleid != 2 && user.Roleid != 3) || !user.Drid.HasValue)
+                return (null, RedirectToAction("Index", "Admin"));
+
+            var doc = await _context.Doctors.FindAsync(user.Drid.Value);
+            if (doc == null)
+                return (null, RedirectToAction("Index", "Admin"));
+
+            return (new DoctorSession
+            {
+                UserId = user.Userid,
+                DoctorId = doc.Drid,
+                DoctorName = string.IsNullOrWhiteSpace(doc.Drname) ? "Doctor" : doc.Drname,
+                DepId = doc.Depid
+            }, null);
         }
 
         private static DateTime TodayIst()
@@ -44,61 +79,113 @@ namespace HelloDoctor.Care.Controllers
 
         private static string NowStamp()
         {
-            return TodayIst().ToString("dd-MM-yyyy hh:mm:ss tt");
+            return TodayIst().ToString("dd-MM-yyyy hh:mm:ss tt", CultureInfo.InvariantCulture);
         }
 
-        // ------------------------------------------------------------
-        // REPORT 1: patients-per-doctor list (filterable, printable)
-        // ------------------------------------------------------------
-        [HttpGet]
-        public async Task<IActionResult> Index(int? doctorId, string? date)
+        private static bool TryParseFilterDate(string? date, out DateTime parsedDate)
         {
-            if (CurrentUserId() == 0) return RedirectToAction("Login", "Auth");
+            parsedDate = TodayIst();
+            if (string.IsNullOrWhiteSpace(date))
+                return false;
 
-            var user = await _context.AdminUsers.FindAsync(CurrentUserId());
+            string trimmed = date.Trim();
+            if (string.Equals(trimmed, "all", StringComparison.OrdinalIgnoreCase))
+                return false;
 
-            // Doctors always see only their own patients
-            if (user != null && user.Drid.HasValue)
+            if (string.Equals(trimmed, "today", StringComparison.OrdinalIgnoreCase))
             {
-                doctorId = user.Drid.Value;
-                ViewBag.IsDoctorUser = true;
+                parsedDate = TodayIst();
+                return true;
             }
 
-            // date: "yyyy-MM-dd" | "all" | empty (= today)
-            bool allDates = string.Equals(date, "all", StringComparison.OrdinalIgnoreCase);
-            DateTime selectedDate = TodayIst();
-            if (!allDates && !string.IsNullOrEmpty(date))
-                DateTime.TryParseExact(date, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out selectedDate);
+            string[] formats = { "yyyy-MM-dd", "dd-MMM-yyyy", "d-MMM-yyyy", "dd-MM-yyyy", "d-MM-yyyy" };
+            if (DateTime.TryParseExact(trimmed, formats, CultureInfo.InvariantCulture, DateTimeStyles.None, out parsedDate))
+                return true;
 
-            string aptmtdate = selectedDate.ToString("dd-MMM-yyyy");
-            ViewBag.SelectedDate = selectedDate.ToString("yyyy-MM-dd");
-            ViewBag.DisplayDate = aptmtdate;
-            ViewBag.AllDates = allDates;
-            ViewBag.DoctorId = doctorId ?? 0;
+            if (DateTime.TryParseExact(trimmed, formats, CultureInfo.CurrentCulture, DateTimeStyles.None, out parsedDate))
+                return true;
 
+            return DateTime.TryParse(trimmed, CultureInfo.InvariantCulture, DateTimeStyles.None, out parsedDate)
+                || DateTime.TryParse(trimmed, out parsedDate);
+        }
+
+        private static List<string> DateVariants(DateTime d)
+        {
+            return new[]
+            {
+                d.ToString("dd-MMM-yyyy", CultureInfo.InvariantCulture),
+                d.ToString("d-MMM-yyyy", CultureInfo.InvariantCulture),
+                d.ToString("dd-MMM-yyyy"),
+                d.ToString("d-MMM-yyyy"),
+                d.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+            }
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Distinct()
+            .ToList();
+        }
+
+        private static string NormalizeVisitDate(string? rawDate)
+        {
+            if (string.IsNullOrWhiteSpace(rawDate))
+                return TodayIst().ToString("dd-MMM-yyyy", CultureInfo.InvariantCulture);
+
+            if (TryParseFilterDate(rawDate, out DateTime parsed))
+                return parsed.ToString("dd-MMM-yyyy", CultureInfo.InvariantCulture);
+
+            return rawDate.Trim();
+        }
+
+        private static string ToIsoDate(string? storedDate)
+        {
+            if (!string.IsNullOrWhiteSpace(storedDate) && TryParseFilterDate(storedDate, out DateTime parsed))
+                return parsed.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+            return "";
+        }
+
+        private async Task<List<PatientVisitRow>> QueryDoctorVisitsAsync(
+            DoctorSession docSession,
+            bool hasDateFilter,
+            DateTime selectedDate,
+            string? search,
+            string normalizedStatus)
+        {
+            // Note: tbl_appointment.drid stores tbl_adminuser.userid (docSession.UserId)
             var query = from a in _context.Appointments
-                        join d in _context.Doctors on a.Drid equals d.Drid
                         join csd in _context.ConsultationSlotDetails on a.Slotdtid equals csd.Slotdtid into slotJoin
                         from csd in slotJoin.DefaultIfEmpty()
-                        where a.Actv == true
-                        select new { a, d, csd };
+                        where a.Actv == true && a.Drid == docSession.UserId
+                        select new { a, csd };
 
-            if (doctorId.HasValue && doctorId.Value > 0)
-                query = query.Where(x => x.a.Drid == doctorId.Value);
+            if (hasDateFilter)
+            {
+                var dateMatches = DateVariants(selectedDate);
+                query = query.Where(x => x.a.Aptmtdate != null && dateMatches.Contains(x.a.Aptmtdate));
+            }
 
-            if (!allDates)
-                query = query.Where(x => x.a.Aptmtdate == aptmtdate);
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                string s = search.Trim();
+                query = query.Where(x =>
+                    (x.a.Pname != null && x.a.Pname.Contains(s)) ||
+                    (x.a.Mobnum != null && x.a.Mobnum.Contains(s)) ||
+                    (x.a.Addr != null && x.a.Addr.Contains(s)));
+            }
 
-            var visits = await query
-                .OrderBy(x => x.csd != null ? x.csd.Token : 9999)
-                .ThenByDescending(x => x.a.Aptmtid)
-                .ToListAsync();
+            var orderedQuery = hasDateFilter
+                ? query.OrderBy(x => x.csd != null && x.csd.Token != null ? x.csd.Token.Value : 9999)
+                       .ThenByDescending(x => x.a.Aptmtid)
+                : query.OrderByDescending(x => x.a.Aptmtid);
 
-            // Existing reports for these visits (to show status + links)
+            var visits = await orderedQuery.ToListAsync();
+
             var aptmtIds = visits.Select(x => x.a.Aptmtid).ToList();
-            var reports = await _context.PatientReports
-                .Where(r => r.Aptmtid != null && aptmtIds.Contains(r.Aptmtid.Value))
-                .ToListAsync();
+            var reports = aptmtIds.Count > 0
+                ? await _context.PatientReports
+                    .Where(r => r.Drid == docSession.DoctorId && r.Aptmtid != null && aptmtIds.Contains(r.Aptmtid.Value))
+                    .ToListAsync()
+                : new List<PatientReport>();
+
             var reportsByAppointment = reports
                 .GroupBy(r => r.Aptmtid!.Value)
                 .ToDictionary(g => g.Key, g => g.ToList());
@@ -110,10 +197,10 @@ namespace HelloDoctor.Care.Controllers
                 Mobile = x.a.Mobnum,
                 Age = x.a.Age != null ? x.a.Age.ToString() : null,
                 Address = x.a.Addr,
-                Drid = x.a.Drid,
-                DoctorName = x.d.Drname,
+                Drid = docSession.DoctorId,
+                DoctorName = docSession.DoctorName,
                 VisitDate = x.a.Aptmtdate,
-                SlotTime = x.csd != null ? x.csd.Frmtymdt : "-",
+                SlotTime = x.csd != null && !string.IsNullOrEmpty(x.csd.Frmtymdt) ? x.csd.Frmtymdt : "-",
                 Token = x.csd != null && x.csd.Token != null ? "#" + x.csd.Token : "-",
                 Payment = x.a.Payment == true,
                 Reports = reportsByAppointment.ContainsKey(x.a.Aptmtid)
@@ -121,73 +208,61 @@ namespace HelloDoctor.Care.Controllers
                     : new List<PatientReport>()
             }).ToList();
 
+            if (normalizedStatus == "with")
+                rows = rows.Where(r => r.ReportCount > 0).ToList();
+            else if (normalizedStatus == "pending")
+                rows = rows.Where(r => r.ReportCount == 0).ToList();
+
+            return rows;
+        }
+
+        // ------------------------------------------------------------
+        // REPORT 1: patient visits list for the logged-in doctor
+        // ------------------------------------------------------------
+        [HttpGet]
+        public async Task<IActionResult> Index(string? date, string? search, string? status)
+        {
+            var (docSession, redirect) = await RequireDoctorAsync();
+            if (redirect != null) return redirect;
+
+            bool hasDateFilter = TryParseFilterDate(date, out DateTime selectedDate);
+            string normalizedStatus = (status ?? "all").Trim().ToLowerInvariant();
+            if (normalizedStatus != "with" && normalizedStatus != "pending")
+                normalizedStatus = "all";
+
+            var rows = await QueryDoctorVisitsAsync(docSession!, hasDateFilter, selectedDate, search, normalizedStatus);
+
             ViewBag.VisitRows = rows;
             ViewBag.TotalPatients = rows.Count;
             ViewBag.WithReports = rows.Count(r => r.ReportCount > 0);
-
-            ViewBag.Doctors = await _context.Doctors
-                .Where(d => d.Actv == true)
-                .OrderBy(d => d.Drname)
-                .ToListAsync();
-            ViewBag.DoctorName = doctorId.HasValue && doctorId.Value > 0
-                ? await _context.Doctors.Where(d => d.Drid == doctorId.Value).Select(d => d.Drname).FirstOrDefaultAsync()
-                : "All Doctors";
+            ViewBag.DoctorName = docSession!.DoctorName;
+            ViewBag.AllDates = !hasDateFilter;
+            ViewBag.SelectedDate = hasDateFilter ? selectedDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) : "";
+            ViewBag.TodayDate = TodayIst().ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            ViewBag.DisplayDate = hasDateFilter ? selectedDate.ToString("dd-MMM-yyyy", CultureInfo.InvariantCulture) : "All Dates";
+            ViewBag.Search = search?.Trim() ?? "";
+            ViewBag.Status = normalizedStatus;
 
             return View();
         }
 
-        // Printable version of the patients-per-doctor report
+        // Printable version of the doctor's patient visits report
         [HttpGet]
-        public async Task<IActionResult> PrintPatients(int? doctorId, string? date)
+        public async Task<IActionResult> PrintPatients(string? date, string? search, string? status)
         {
-            if (CurrentUserId() == 0) return RedirectToAction("Login", "Auth");
+            var (docSession, redirect) = await RequireDoctorAsync();
+            if (redirect != null) return redirect;
 
-            var user = await _context.AdminUsers.FindAsync(CurrentUserId());
-            if (user != null && user.Drid.HasValue) doctorId = user.Drid.Value;
+            bool hasDateFilter = TryParseFilterDate(date, out DateTime selectedDate);
+            string normalizedStatus = (status ?? "all").Trim().ToLowerInvariant();
+            if (normalizedStatus != "with" && normalizedStatus != "pending")
+                normalizedStatus = "all";
 
-            bool allDates = string.Equals(date, "all", StringComparison.OrdinalIgnoreCase);
-            DateTime selectedDate = TodayIst();
-            if (!allDates && !string.IsNullOrEmpty(date))
-                DateTime.TryParseExact(date, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out selectedDate);
+            var rows = await QueryDoctorVisitsAsync(docSession!, hasDateFilter, selectedDate, search, normalizedStatus);
 
-            string aptmtdate = selectedDate.ToString("dd-MMM-yyyy");
-
-            var query = from a in _context.Appointments
-                        join d in _context.Doctors on a.Drid equals d.Drid
-                        join csd in _context.ConsultationSlotDetails on a.Slotdtid equals csd.Slotdtid into slotJoin
-                        from csd in slotJoin.DefaultIfEmpty()
-                        where a.Actv == true
-                        select new { a, d, csd };
-
-            if (doctorId.HasValue && doctorId.Value > 0)
-                query = query.Where(x => x.a.Drid == doctorId.Value);
-            if (!allDates)
-                query = query.Where(x => x.a.Aptmtdate == aptmtdate);
-
-            var visits = await query
-                .OrderBy(x => x.csd != null ? x.csd.Token : 9999)
-                .ThenByDescending(x => x.a.Aptmtid)
-                .ToListAsync();
-
-            ViewBag.VisitRows = visits.Select(x => new PatientVisitRow
-            {
-                Aptmtid = x.a.Aptmtid,
-                PatientName = x.a.Pname,
-                Mobile = x.a.Mobnum,
-                Age = x.a.Age != null ? x.a.Age.ToString() : null,
-                Address = x.a.Addr,
-                Drid = x.a.Drid,
-                DoctorName = x.d.Drname,
-                VisitDate = x.a.Aptmtdate,
-                SlotTime = x.csd != null ? x.csd.Frmtymdt : "-",
-                Token = x.csd != null && x.csd.Token != null ? "#" + x.csd.Token : "-",
-                Payment = x.a.Payment == true
-            }).ToList();
-
-            ViewBag.DoctorName = doctorId.HasValue && doctorId.Value > 0
-                ? await _context.Doctors.Where(d => d.Drid == doctorId.Value).Select(d => d.Drname).FirstOrDefaultAsync()
-                : "All Doctors";
-            ViewBag.DisplayDate = allDates ? "All Dates" : aptmtdate;
+            ViewBag.VisitRows = rows;
+            ViewBag.DoctorName = docSession!.DoctorName;
+            ViewBag.DisplayDate = hasDateFilter ? selectedDate.ToString("dd-MMM-yyyy", CultureInfo.InvariantCulture) : "All Dates";
 
             return View();
         }
@@ -198,53 +273,63 @@ namespace HelloDoctor.Care.Controllers
         [HttpGet]
         public async Task<IActionResult> Add(int? aptmtid)
         {
-            if (CurrentUserId() == 0) return RedirectToAction("Login", "Auth");
+            var (docSession, redirect) = await RequireDoctorAsync();
+            if (redirect != null) return redirect;
 
-            ViewBag.Doctors = await _context.Doctors
-                .Where(d => d.Actv == true)
-                .OrderBy(d => d.Drname)
-                .ToListAsync();
+            ViewBag.DoctorId = docSession!.DoctorId;
+            ViewBag.DoctorName = docSession.DoctorName;
+
+            string visitDateIso = TodayIst().ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
             if (aptmtid.HasValue)
             {
-                var apt = await _context.Appointments.FindAsync(aptmtid.Value);
+                var apt = await _context.Appointments
+                    .FirstOrDefaultAsync(a => a.Aptmtid == aptmtid.Value && a.Drid == docSession.UserId);
                 if (apt == null) return RedirectToAction("Index");
 
-                var doc = await _context.Doctors.FindAsync(apt.Drid);
                 ViewBag.Appointment = apt;
-                ViewBag.PrefillDoctorId = apt.Drid;
-                ViewBag.PrefillDepId = doc?.Depid;
-                ViewBag.PrefillVisitDate = apt.Aptmtdate;
+                string parsedIso = ToIsoDate(apt.Aptmtdate);
+                if (!string.IsNullOrEmpty(parsedIso))
+                    visitDateIso = parsedIso;
             }
 
+            ViewBag.PrefillVisitDateIso = visitDateIso;
             return View();
         }
 
         [HttpPost]
         public async Task<IActionResult> Add(int? aptmtid, string Pname, string? Mobnum, string? Age, string? Addr,
-                                             int Drid, string? Visitdate, string? Diagnosis, string? Prescription,
+                                             int? Drid, string? Visitdate, string? Diagnosis, string? Prescription,
                                              string? Advice, List<IFormFile>? Files)
         {
-            if (CurrentUserId() == 0) return RedirectToAction("Login", "Auth");
+            var (docSession, redirect) = await RequireDoctorAsync();
+            if (redirect != null) return redirect;
 
-            if (string.IsNullOrWhiteSpace(Pname) || Drid <= 0)
+            if (string.IsNullOrWhiteSpace(Pname))
             {
-                TempData["ErrorMsg"] = "Patient name and doctor are required.";
+                TempData["ErrorMsg"] = "Patient name is required.";
                 return RedirectToAction("Add", new { aptmtid });
             }
 
-            var doc = await _context.Doctors.FindAsync(Drid);
+            int? validAptmtId = null;
+            if (aptmtid.HasValue)
+            {
+                bool ownsAppointment = await _context.Appointments
+                    .AnyAsync(a => a.Aptmtid == aptmtid.Value && a.Drid == docSession!.UserId);
+                if (ownsAppointment)
+                    validAptmtId = aptmtid.Value;
+            }
 
             var report = new PatientReport
             {
-                Aptmtid = aptmtid,
+                Aptmtid = validAptmtId,
                 Pname = Pname.Trim(),
                 Mobnum = Mobnum?.Trim(),
                 Age = Age?.Trim(),
                 Addr = Addr?.Trim(),
-                Drid = Drid,
-                Depid = doc?.Depid,
-                Visitdate = string.IsNullOrWhiteSpace(Visitdate) ? TodayIst().ToString("dd-MMM-yyyy") : Visitdate.Trim(),
+                Drid = docSession!.DoctorId,
+                Depid = docSession.DepId,
+                Visitdate = NormalizeVisitDate(Visitdate),
                 Diagnosis = Diagnosis?.Trim(),
                 Prescription = Prescription?.Trim(),
                 Advice = Advice?.Trim(),
@@ -267,13 +352,14 @@ namespace HelloDoctor.Care.Controllers
         [HttpGet]
         public async Task<IActionResult> Details(int id)
         {
-            if (CurrentUserId() == 0) return RedirectToAction("Login", "Auth");
+            var (docSession, redirect) = await RequireDoctorAsync();
+            if (redirect != null) return redirect;
 
             var report = await _context.PatientReports
                 .Include(r => r.Files)
                 .Include(r => r.Doctor)
                 .ThenInclude(d => d!.Department)
-                .FirstOrDefaultAsync(r => r.Rptid == id);
+                .FirstOrDefaultAsync(r => r.Rptid == id && r.Drid == docSession!.DoctorId);
 
             if (report == null) return RedirectToAction("MedicalReports");
             return View(report);
@@ -283,9 +369,11 @@ namespace HelloDoctor.Care.Controllers
         [HttpPost]
         public async Task<IActionResult> UploadFiles(int id, List<IFormFile>? Files)
         {
-            if (CurrentUserId() == 0) return RedirectToAction("Login", "Auth");
+            var (docSession, redirect) = await RequireDoctorAsync();
+            if (redirect != null) return redirect;
 
-            var report = await _context.PatientReports.FindAsync(id);
+            var report = await _context.PatientReports
+                .FirstOrDefaultAsync(r => r.Rptid == id && r.Drid == docSession!.DoctorId);
             if (report == null) return RedirectToAction("MedicalReports");
 
             int saved = await SaveFiles(id, Files);
@@ -300,9 +388,12 @@ namespace HelloDoctor.Care.Controllers
         [HttpPost]
         public async Task<IActionResult> DeleteFile(int fileId, int returnId)
         {
-            if (CurrentUserId() == 0) return RedirectToAction("Login", "Auth");
+            var (docSession, redirect) = await RequireDoctorAsync();
+            if (redirect != null) return redirect;
 
-            var file = await _context.PatientReportFiles.FindAsync(fileId);
+            var file = await _context.PatientReportFiles
+                .Include(f => f.Report)
+                .FirstOrDefaultAsync(f => f.Fileid == fileId && f.Report != null && f.Report.Drid == docSession!.DoctorId);
             if (file != null)
             {
                 TryDeletePhysicalFile(file.StoredName);
@@ -319,13 +410,16 @@ namespace HelloDoctor.Care.Controllers
         [HttpGet]
         public async Task<IActionResult> Edit(int id)
         {
-            if (CurrentUserId() == 0) return RedirectToAction("Login", "Auth");
+            var (docSession, redirect) = await RequireDoctorAsync();
+            if (redirect != null) return redirect;
 
             var report = await _context.PatientReports
                 .Include(r => r.Doctor)
-                .FirstOrDefaultAsync(r => r.Rptid == id);
+                .FirstOrDefaultAsync(r => r.Rptid == id && r.Drid == docSession!.DoctorId);
 
             if (report == null) return RedirectToAction("MedicalReports");
+
+            ViewBag.VisitDateIso = ToIsoDate(report.Visitdate);
             return View(report);
         }
 
@@ -333,16 +427,18 @@ namespace HelloDoctor.Care.Controllers
         public async Task<IActionResult> Edit(int id, string Pname, string? Mobnum, string? Age, string? Addr,
                                               string? Visitdate, string? Diagnosis, string? Prescription, string? Advice)
         {
-            if (CurrentUserId() == 0) return RedirectToAction("Login", "Auth");
+            var (docSession, redirect) = await RequireDoctorAsync();
+            if (redirect != null) return redirect;
 
-            var report = await _context.PatientReports.FindAsync(id);
+            var report = await _context.PatientReports
+                .FirstOrDefaultAsync(r => r.Rptid == id && r.Drid == docSession!.DoctorId);
             if (report == null) return RedirectToAction("MedicalReports");
 
             report.Pname = string.IsNullOrWhiteSpace(Pname) ? report.Pname : Pname.Trim();
             report.Mobnum = Mobnum?.Trim();
             report.Age = Age?.Trim();
             report.Addr = Addr?.Trim();
-            report.Visitdate = string.IsNullOrWhiteSpace(Visitdate) ? report.Visitdate : Visitdate.Trim();
+            report.Visitdate = string.IsNullOrWhiteSpace(Visitdate) ? report.Visitdate : NormalizeVisitDate(Visitdate);
             report.Diagnosis = Diagnosis?.Trim();
             report.Prescription = Prescription?.Trim();
             report.Advice = Advice?.Trim();
@@ -356,9 +452,12 @@ namespace HelloDoctor.Care.Controllers
         [HttpPost]
         public async Task<IActionResult> Delete(int id)
         {
-            if (CurrentUserId() == 0) return RedirectToAction("Login", "Auth");
+            var (docSession, redirect) = await RequireDoctorAsync();
+            if (redirect != null) return redirect;
 
-            var report = await _context.PatientReports.Include(r => r.Files).FirstOrDefaultAsync(r => r.Rptid == id);
+            var report = await _context.PatientReports
+                .Include(r => r.Files)
+                .FirstOrDefaultAsync(r => r.Rptid == id && r.Drid == docSession!.DoctorId);
             if (report != null)
             {
                 foreach (var f in report.Files.ToList())
@@ -372,40 +471,41 @@ namespace HelloDoctor.Care.Controllers
         }
 
         // ------------------------------------------------------------
-        // REPORT 2 (list): all medical reports
+        // REPORT 2 (list): medical reports for the logged-in doctor
         // ------------------------------------------------------------
         [HttpGet]
-        public async Task<IActionResult> MedicalReports(int? doctorId, string? search)
+        public async Task<IActionResult> MedicalReports(string? search, string? date)
         {
-            if (CurrentUserId() == 0) return RedirectToAction("Login", "Auth");
+            var (docSession, redirect) = await RequireDoctorAsync();
+            if (redirect != null) return redirect;
 
-            var user = await _context.AdminUsers.FindAsync(CurrentUserId());
-            if (user != null && user.Drid.HasValue)
-            {
-                doctorId = user.Drid.Value;
-                ViewBag.IsDoctorUser = true;
-            }
+            bool hasDateFilter = TryParseFilterDate(date, out DateTime selectedDate);
 
             var query = _context.PatientReports
                 .Include(r => r.Files)
                 .Include(r => r.Doctor)
-                .AsQueryable();
+                .Where(r => r.Drid == docSession!.DoctorId);
 
-            if (doctorId.HasValue && doctorId.Value > 0)
-                query = query.Where(r => r.Drid == doctorId.Value);
+            if (hasDateFilter)
+            {
+                var dateMatches = DateVariants(selectedDate);
+                query = query.Where(r => r.Visitdate != null && dateMatches.Contains(r.Visitdate));
+            }
 
             if (!string.IsNullOrWhiteSpace(search))
             {
                 string s = search.Trim();
                 query = query.Where(r =>
                     (r.Pname != null && r.Pname.Contains(s)) ||
-                    (r.Mobnum != null && r.Mobnum.Contains(s)));
+                    (r.Mobnum != null && r.Mobnum.Contains(s)) ||
+                    (r.Diagnosis != null && r.Diagnosis.Contains(s)));
             }
 
             ViewBag.Reports = await query.OrderByDescending(r => r.Rptid).ToListAsync();
-            ViewBag.DoctorId = doctorId ?? 0;
-            ViewBag.Search = search ?? "";
-            ViewBag.Doctors = await _context.Doctors.Where(d => d.Actv == true).OrderBy(d => d.Drname).ToListAsync();
+            ViewBag.DoctorName = docSession!.DoctorName;
+            ViewBag.Search = search?.Trim() ?? "";
+            ViewBag.SelectedDate = hasDateFilter ? selectedDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) : "";
+            ViewBag.TodayDate = TodayIst().ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
             return View();
         }
@@ -414,13 +514,14 @@ namespace HelloDoctor.Care.Controllers
         [HttpGet]
         public async Task<IActionResult> PrintReport(int id)
         {
-            if (CurrentUserId() == 0) return RedirectToAction("Login", "Auth");
+            var (docSession, redirect) = await RequireDoctorAsync();
+            if (redirect != null) return redirect;
 
             var report = await _context.PatientReports
                 .Include(r => r.Files)
                 .Include(r => r.Doctor)
                 .ThenInclude(d => d!.Department)
-                .FirstOrDefaultAsync(r => r.Rptid == id);
+                .FirstOrDefaultAsync(r => r.Rptid == id && r.Drid == docSession!.DoctorId);
 
             if (report == null) return RedirectToAction("MedicalReports");
             return View(report);

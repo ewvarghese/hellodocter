@@ -1,7 +1,11 @@
 @{
     ViewData["Title"] = "Medical Reports";
-    var reports = ViewBag.Reports as IEnumerable<HelloDoctor.Care.Models.PatientReport>
-                  ?? Enumerable.Empty<HelloDoctor.Care.Models.PatientReport>();
+    var reports = ViewBag.Reports as List<HelloDoctor.Care.Models.PatientReport>
+                  ?? new List<HelloDoctor.Care.Models.PatientReport>();
+    string search = ViewBag.Search as string ?? "";
+    string selectedDate = ViewBag.SelectedDate as string ?? "";
+    string todayDate = ViewBag.TodayDate as string ?? "";
+    string todayUrl = $"/Report/MedicalReports?date={Uri.EscapeDataString(todayDate)}&search={Uri.EscapeDataString(search)}";
 }
 
 <div class="w-full flex-grow flex flex-col py-6 px-2">
@@ -30,31 +34,24 @@
         <!-- Filters -->
         <div class="bg-white border border-slate-200 rounded-[2rem] p-6 md:p-8 shadow-sm">
             <form action="/Report/MedicalReports" method="get" class="flex flex-wrap items-end gap-4">
-                @if (!(ViewBag.IsDoctorUser ?? false)) {
-                    <div class="flex flex-col gap-2">
-                        <label class="text-xs font-black text-slate-400 uppercase tracking-widest">Doctor</label>
-                        <select name="doctorId" class="px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-[#f26522] focus:ring-4 focus:ring-[#f26522]/10 transition-all min-w-56">
-                            <option value="0">All Doctors</option>
-                            @foreach (var doc in ViewBag.Doctors) {
-                                if (ViewBag.DoctorId == doc.Drid) {
-                                    <option value="@doc.Drid" selected>@doc.Drname</option>
-                                } else {
-                                    <option value="@doc.Drid">@doc.Drname</option>
-                                }
-                            }
-                        </select>
-                    </div>
-                }
-                <div class="flex flex-col gap-2">
+                <div class="flex flex-col gap-2 flex-1 min-w-[120px]">
                     <label class="text-xs font-black text-slate-400 uppercase tracking-widest">Search</label>
-                    <input type="text" name="search" value="@ViewBag.Search" placeholder="Patient name or mobile..."
-                           class="px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-[#f26522] focus:ring-4 focus:ring-[#f26522]/10 transition-all min-w-64">
+                    <input type="text" name="search" value="@search" placeholder="Patient name, mobile or diagnosis..."
+                           class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-[#f26522] focus:ring-4 focus:ring-[#f26522]/10 transition-all">
+                </div>
+                <div class="flex flex-col gap-2">
+                    <label class="text-xs font-black text-slate-400 uppercase tracking-widest">Visit Date</label>
+                    <input type="date" name="date" value="@selectedDate"
+                           class="px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-[#f26522] focus:ring-4 focus:ring-[#f26522]/10 transition-all">
                 </div>
                 <button type="submit" class="bg-[#f26522] hover:bg-orange-600 text-white px-6 py-3.5 rounded-xl font-bold shadow-md transition-colors flex items-center gap-2">
-                    <i data-lucide="search" class="w-5 h-5"></i> Search
+                    <i data-lucide="filter" class="w-5 h-5"></i> Filter
                 </button>
-                <a href="/Report/MedicalReports" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-6 py-3.5 rounded-xl font-bold transition-colors">
-                    Clear
+                <a href="@todayUrl" class="bg-blue-50 border border-blue-200 hover:bg-slate-200 text-blue-700 px-5 py-3.5 rounded-xl font-bold transition-colors">
+                    Today
+                </a>
+                <a href="/Report/MedicalReports" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-3.5 rounded-xl font-bold transition-colors">
+                    Reset
                 </a>
             </form>
         </div>
@@ -68,7 +65,7 @@
                             <th class="py-4 px-4 text-xs font-black text-slate-400 uppercase tracking-widest w-16">Sl</th>
                             <th class="py-4 px-4 text-xs font-black text-slate-400 uppercase tracking-widest">Patient</th>
                             <th class="py-4 px-4 text-xs font-black text-slate-400 uppercase tracking-widest">Mobile</th>
-                            <th class="py-4 px-4 text-xs font-black text-slate-400 uppercase tracking-widest">Doctor</th>
+                            <th class="py-4 px-4 text-xs font-black text-slate-400 uppercase tracking-widest">Age</th>
                             <th class="py-4 px-4 text-xs font-black text-slate-400 uppercase tracking-widest">Visit Date</th>
                             <th class="py-4 px-4 text-xs font-black text-slate-400 uppercase tracking-widest">Diagnosis</th>
                             <th class="py-4 px-4 text-xs font-black text-slate-400 uppercase tracking-widest">Files</th>
@@ -76,7 +73,7 @@
                         </tr>
                     </thead>
                     <tbody class="text-sm font-semibold text-slate-700">
-                        @if (!reports.Any()) {
+                        @if (reports.Count == 0) {
                             <tr>
                                 <td colspan="8" class="py-12 text-center text-slate-400 font-semibold">
                                     No medical reports found. Click <strong>New Report</strong> to create one.
@@ -89,9 +86,9 @@
                                     <td class="py-4 px-4 text-slate-400">@index</td>
                                     <td class="py-4 px-4 font-black">@rpt.Pname</td>
                                     <td class="py-4 px-4">@(rpt.Mobnum ?? "-")</td>
-                                    <td class="py-4 px-4">@(rpt.Doctor?.Drname ?? "-")</td>
+                                    <td class="py-4 px-4">@(rpt.Age ?? "-")</td>
                                     <td class="py-4 px-4">@(rpt.Visitdate ?? "-")</td>
-                                    <td class="py-4 px-4 max-w-xs truncate" title="@rpt.Diagnosis">
+                                    <td class="py-4 px-4 max-w-[200px] truncate" title="@rpt.Diagnosis">
                                         @(string.IsNullOrWhiteSpace(rpt.Diagnosis) ? "-" : rpt.Diagnosis)
                                     </td>
                                     <td class="py-4 px-4">
@@ -101,10 +98,10 @@
                                     </td>
                                     <td class="py-4 px-4">
                                         <div class="flex items-center gap-2">
-                                            <a href="/Report/Details/@rpt.Rptid" class="bg-sky-50 text-sky-600 hover:bg-sky-600 hover:text-white px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-colors flex items-center gap-1.5">
+                                            <a href="/Report/Details/@rpt.Rptid" class="bg-blue-50 text-blue-600 hover:bg-blue-700 hover:text-white px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-colors flex items-center gap-1.5">
                                                 <i data-lucide="eye" class="w-4 h-4"></i> View
                                             </a>
-                                            <a href="/Report/Edit/@rpt.Rptid" class="bg-slate-100 text-slate-600 hover:bg-slate-600 hover:text-white px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-colors flex items-center gap-1.5">
+                                            <a href="/Report/Edit/@rpt.Rptid" class="bg-slate-100 text-slate-600 hover:bg-slate-700 hover:text-white px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-colors flex items-center gap-1.5">
                                                 <i data-lucide="pencil" class="w-4 h-4"></i> Edit
                                             </a>
                                         </div>
