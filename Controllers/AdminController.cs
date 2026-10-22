@@ -253,14 +253,16 @@ namespace HelloDoctor.Care.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> UpdateConsultationDays(List<int> selectedDays)
+        public async Task<IActionResult> UpdateConsultationDays(List<int>? selectedDays)
         {
             int userId = Convert.ToInt32(HttpContext.Session.GetString("userid") ?? "0");
             if (userId == 0) return RedirectToAction("Login", "Auth");
 
+            selectedDays ??= new List<int>();
             var existingDays = await _context.ConsultationDays.Where(c => c.Userid == userId).ToListAsync();
             var allWeekdays = await _context.Weekdays.ToListAsync();
-            string now = DateTime.Now.ToString("dd-MM-yyyy hh:mm:ss tt");
+            string now = DateTime.Now.ToString("dd-MM-yyyy hh:mm:ss tt", CultureInfo.InvariantCulture);
+            int nextId = (await _context.ConsultationDays.MaxAsync(c => (int?)c.Cnid) ?? 0) + 1;
 
             foreach (var wd in allWeekdays)
             {
@@ -276,10 +278,9 @@ namespace HelloDoctor.Care.Controllers
                     }
                     else
                     {
-                        int nextId = (_context.ConsultationDays.Max(c => (int?)c.Cnid) ?? 0) + 1;
                         _context.ConsultationDays.Add(new ConsultationDay
                         {
-                            Cnid = nextId,
+                            Cnid = nextId++,
                             Dayid = wd.Dayid,
                             Userid = userId,
                             Actv = true,
@@ -297,7 +298,7 @@ namespace HelloDoctor.Care.Controllers
                 }
             }
             await _context.SaveChangesAsync();
-            TempData["SuccessMsg"] = "Consultation Days Updated Successfully";
+            TempData["SuccessMsg"] = "Consultation Days Updated Successfully! Now click the + button beside each day below to add time slots.";
             return RedirectToAction("ConsultationDays");
         }
 
@@ -337,21 +338,36 @@ namespace HelloDoctor.Care.Controllers
             int userId = Convert.ToInt32(HttpContext.Session.GetString("userid") ?? "0");
             if (userId == 0) return RedirectToAction("Login", "Auth");
 
-            if (!DateTime.TryParseExact(startTime, "h:mm tt", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime start)) return RedirectToAction("Slots", new { cnid });
-            if (!DateTime.TryParseExact(endTime, "h:mm tt", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime end)) return RedirectToAction("Slots", new { cnid });
+            string[] timeFormats = { "hh:mm tt", "h:mm tt" };
+            if (!DateTime.TryParseExact(startTime?.Trim(), timeFormats, CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime start) ||
+                !DateTime.TryParseExact(endTime?.Trim(), timeFormats, CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime end))
+            {
+                TempData["ErrorMsg"] = "Invalid time selection.";
+                return RedirectToAction("Slots", new { cnid });
+            }
 
-            int nextSlotId = (_context.ConsultationSlots.Max(s => (int?)s.Slotid) ?? 0) + 1;
+            if (end <= start || duration <= 0 || start.AddMinutes(duration) > end)
+            {
+                TempData["ErrorMsg"] = "To Time must be later than From Time.";
+                return RedirectToAction("Slots", new { cnid });
+            }
+
+            int nextSlotId = (await _context.ConsultationSlots.MaxAsync(s => (int?)s.Slotid) ?? 0) + 1;
 
             var masterSlot = new ConsultationSlot { Slotid = nextSlotId, Cnid = cnid, Userid = userId };
             _context.ConsultationSlots.Add(masterSlot);
 
-            int tokenCounter = (_context.ConsultationSlotDetails.Where(s => s.Slotid == nextSlotId).Max(s => (int?)s.Token) ?? 0) + 1;
-            int nextDetailId = (_context.ConsultationSlotDetails.Max(s => (int?)s.Slotdtid) ?? 0) + 1;
+            int existingMaxToken = await (from csd in _context.ConsultationSlotDetails
+                                          join cs in _context.ConsultationSlots on csd.Slotid equals cs.Slotid
+                                          where cs.Cnid == cnid && cs.Userid == userId
+                                          select (int?)csd.Token).MaxAsync() ?? 0;
+            int tokenCounter = existingMaxToken + 1;
+            int nextDetailId = (await _context.ConsultationSlotDetails.MaxAsync(s => (int?)s.Slotdtid) ?? 0) + 1;
 
             while (start < end && start.AddMinutes(duration) <= end)
             {
                 DateTime next = start.AddMinutes(duration);
-                string timeStr = $"{start.ToString("hh:mm tt")}-{next.ToString("hh:mm tt")}";
+                string timeStr = $"{start.ToString("hh:mm tt", CultureInfo.InvariantCulture)}-{next.ToString("hh:mm tt", CultureInfo.InvariantCulture)}";
 
                 _context.ConsultationSlotDetails.Add(new ConsultationSlotDetail
                 {
@@ -639,12 +655,22 @@ namespace HelloDoctor.Care.Controllers
                                  where d.Drid == user.Drid
                                  select new
                                  {
-                                     Name =     d.Drname,
+                                     Name = d.Drname,
                                      Dept = dp != null ? dp.Depname : ""
                                  }).FirstOrDefaultAsync();
 
+            var slotDays = await (from csd in _context.ConsultationSlotDetails
+                                  join cs in _context.ConsultationSlots on csd.Slotid equals cs.Slotid
+                                  join cd in _context.ConsultationDays on cs.Cnid equals cd.Cnid
+                                  join wd in _context.Weekdays on cd.Dayid equals wd.Dayid
+                                  where cs.Userid == user.Userid && cd.Actv == true && csd.Actv == true && wd.Days != null
+                                  orderby wd.Dayid
+                                  select wd.Days!).Distinct().ToListAsync();
+
             ViewBag.DoctorId = user.Userid;
             ViewBag.DoctorName = docInfo != null ? $"{docInfo.Name} ({docInfo.Dept})" : "Doctor";
+            ViewBag.SlotDays = slotDays;
+            ViewBag.HasSlots = slotDays.Count > 0;
 
             return View();
         }
@@ -652,13 +678,27 @@ namespace HelloDoctor.Care.Controllers
         [HttpGet]
         public async Task<JsonResult> GetDoctorSlots(int drid, string date)
         {
-            if (!DateTime.TryParse(date, out DateTime selectedDate)) return Json(new List<object>());
+            if (!DateTime.TryParseExact(date, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime selectedDate)
+                && !DateTime.TryParse(date, CultureInfo.InvariantCulture, DateTimeStyles.None, out selectedDate)
+                && !DateTime.TryParse(date, out selectedDate))
+            {
+                return Json(new List<object>());
+            }
 
             string dayOfWeek = selectedDate.DayOfWeek.ToString();
-            string aptmtdate = selectedDate.ToString("dd-MMM-yyyy");
+            string aptmtdateInvariant = selectedDate.ToString("dd-MMM-yyyy", CultureInfo.InvariantCulture);
+            string aptmtdateLocal = selectedDate.ToString("dd-MMM-yyyy");
+
+            bool onLeave = await _context.Leaves.AnyAsync(l =>
+                l.Drid == drid && (l.Frmdt == aptmtdateInvariant || l.Frmdt == aptmtdateLocal));
+            if (onLeave)
+                return Json(new List<object>());
 
             var bookedSlots = await _context.Appointments
-                .Where(a => a.Drid == drid && a.Aptmtdate == aptmtdate && a.Actv == true && a.Slotdtid != null)
+                .Where(a => a.Drid == drid
+                         && (a.Aptmtdate == aptmtdateInvariant || a.Aptmtdate == aptmtdateLocal)
+                         && a.Actv == true
+                         && a.Slotdtid != null)
                 .Select(a => a.Slotdtid)
                 .ToListAsync();
 
@@ -668,6 +708,8 @@ namespace HelloDoctor.Care.Controllers
                                join wd in _context.Weekdays on cd.Dayid equals wd.Dayid
                                where wd.Days == dayOfWeek
                                   && cs.Userid == drid
+                                  && cd.Actv == true
+                                  && csd.Actv == true
                                   && !bookedSlots.Contains(csd.Slotdtid)
                                orderby csd.Slotdtid
                                select new
@@ -686,8 +728,11 @@ namespace HelloDoctor.Care.Controllers
             try
             {
                 DateTime parsedDate;
-                string aptmtdate = DateTime.TryParse(Date, out parsedDate) ? parsedDate.ToString("dd-MMM-yyyy") : Date;
-                string aptmtday = parsedDate.DayOfWeek.ToString();
+                bool okDate = DateTime.TryParseExact(Date, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out parsedDate)
+                           || DateTime.TryParse(Date, CultureInfo.InvariantCulture, DateTimeStyles.None, out parsedDate)
+                           || DateTime.TryParse(Date, out parsedDate);
+                string aptmtdate = okDate ? parsedDate.ToString("dd-MMM-yyyy", CultureInfo.InvariantCulture) : Date;
+                string aptmtday = okDate ? parsedDate.DayOfWeek.ToString() : "";
 
                 var slotInfo = await (from csd in _context.ConsultationSlotDetails
                                       join cs in _context.ConsultationSlots on csd.Slotid equals cs.Slotid
@@ -699,10 +744,11 @@ namespace HelloDoctor.Care.Controllers
                 int? fetchedToken = slotInfo?.Token;
                 string timeSlot = slotInfo?.Frmtymdt ?? "";
 
-                var docInfo = await (from d in _context.Doctors
+                var docInfo = await (from adm in _context.AdminUsers
+                                     join d in _context.Doctors on adm.Drid equals d.Drid
                                      join dp in _context.Departments on d.Depid equals dp.Depid into deptGroup
                                      from dp in deptGroup.DefaultIfEmpty()
-                                     where d.Drid == DoctorId
+                                     where adm.Userid == DoctorId
                                      select new
                                      {
                                          DoctorName = d.Drname,
@@ -714,9 +760,11 @@ namespace HelloDoctor.Care.Controllers
                 string deptName = docInfo?.DeptName ?? "";
                 int depId = docInfo?.DepId ?? 0;
 
-                int nextId = (_context.Appointments.Max(a => (int?)a.Aptmtid) ?? 0) + 1;
-                TimeZoneInfo tzi = TimeZoneInfo.FindSystemTimeZoneById("India Standard Time");
-                string updte = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tzi).ToString("dd-MM-yyyy hh:mm:ss tt");
+                int nextId = (await _context.Appointments.MaxAsync(a => (int?)a.Aptmtid) ?? 0) + 1;
+                TimeZoneInfo tzi;
+                try { tzi = TimeZoneInfo.FindSystemTimeZoneById("India Standard Time"); }
+                catch (TimeZoneNotFoundException) { tzi = TimeZoneInfo.FindSystemTimeZoneById("Asia/Kolkata"); }
+                string updte = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tzi).ToString("dd-MM-yyyy hh:mm:ss tt", CultureInfo.InvariantCulture);
 
                 var newApt = new Appointment
                 {
@@ -747,7 +795,7 @@ namespace HelloDoctor.Care.Controllers
                         string encodedMessage = Uri.EscapeDataString(message);
                         string strUrl = $"http://sapteleservices.com/SMS_API/sendsms.php?username=&password=&mobile={Mobile}&sendername=APMTDR&message={encodedMessage}&routetype=1&tid=1207162184684214850";
 
-                        using (System.Net.Http.HttpClient client = new System.Net.Http.HttpClient())
+                        using (System.Net.Http.HttpClient client = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(3) })
                         {
                             await client.GetAsync(strUrl);
                         }
@@ -758,8 +806,8 @@ namespace HelloDoctor.Care.Controllers
                     }
                 }
 
-                TempData["SuccessMessage"] = "Appointment booked successfully and SMS sent!";
-                return RedirectToAction("Appointments", new { date = parsedDate.ToString("yyyy-MM-dd") });
+                TempData["SuccessMessage"] = "Appointment booked successfully!";
+                return RedirectToAction("Appointments", new { date = okDate ? parsedDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) : "" });
             }
             catch (Exception ex)
             {
