@@ -1,10 +1,17 @@
-@{ Layout = null; }
+@{
+    Layout = null;
+    var visitRows = ViewBag.VisitRows as List<HelloDoctor.Care.Models.PatientVisitRow>
+                    ?? new List<HelloDoctor.Care.Models.PatientVisitRow>();
+    string rawDocName = ViewBag.DoctorName as string ?? "Doctor";
+    string docDisplay = rawDocName.StartsWith("Dr", StringComparison.OrdinalIgnoreCase) ? rawDocName : "Dr. " + rawDocName;
+    string displayDate = ViewBag.DisplayDate as string ?? "All Dates";
+}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Patient Report - @ViewBag.DoctorName - @ViewBag.DisplayDate</title>
+    <title>Patient Report - @docDisplay - @displayDate</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #333; }
         h1 { text-align: center; color: #F16622; margin-bottom: 5px; font-size: 28px; font-weight: 800; }
@@ -27,8 +34,8 @@
     <button class="print-btn" onclick="window.print()">Print / Save as PDF</button>
 
     <h1>HELLO DOCTOR</h1>
-    <h2>Patient Report &mdash; Dr. @ViewBag.DoctorName</h2>
-    <p class="summary">Date: <strong>@ViewBag.DisplayDate</strong></p>
+    <h2>Patient Report &mdash; @docDisplay</h2>
+    <p class="summary">Date: <strong>@displayDate</strong></p>
 
     <table>
         <thead>
@@ -44,26 +51,24 @@
             </tr>
         </thead>
         <tbody>
-            @if (ViewBag.VisitRows != null)
+            @if (visitRows.Count == 0)
             {
-                int sl = 0;
-                foreach (var row in ViewBag.VisitRows)
+                <tr><td colspan="8" style="text-align:center; padding:24px;">No patient visits found.</td></tr>
+            }
+            else
+            {
+                foreach (var row in visitRows)
                 {
-                    sl++;
                     <tr>
                         <td class="token">@row.Token</td>
                         <td>@row.SlotTime</td>
                         <td style="font-weight:bold;">@row.PatientName</td>
-                        <td>@row.Age</td>
-                        <td>@row.Mobile</td>
-                        <td>@row.Address</td>
+                        <td>@(row.Age ?? "-")</td>
+                        <td>@(row.Mobile ?? "-")</td>
+                        <td>@(row.Address ?? "-")</td>
                         <td>@row.VisitDate</td>
                         <td>@(row.Payment ? "Paid" : "Pending")</td>
                     </tr>
-                }
-                if (sl == 0)
-                {
-                    <tr><td colspan="8" style="text-align:center; padding:24px;">No patient visits found.</td></tr>
                 }
             }
         </tbody>

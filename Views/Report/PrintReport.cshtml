@@ -1,5 +1,11 @@
 @model HelloDoctor.Care.Models.PatientReport
-@{ Layout = null; }
+@{
+    Layout = null;
+    string rawDocName = Model.Doctor?.Drname ?? "-";
+    string docDisplay = rawDocName == "-" || rawDocName.StartsWith("Dr", StringComparison.OrdinalIgnoreCase)
+        ? rawDocName
+        : "Dr. " + rawDocName;
+}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -36,7 +42,7 @@
     <table class="info">
         <tr><th>Patient</th><td><strong>@Model.Pname</strong></td><th>Age</th><td>@(Model.Age ?? "-")</td></tr>
         <tr><th>Mobile</th><td>@(Model.Mobnum ?? "-")</td><th>Visit Date</th><td>@(Model.Visitdate ?? "-")</td></tr>
-        <tr><th>Doctor</th><td>Dr. @(Model.Doctor?.Drname ?? "-")</td><th>Department</th><td>@(Model.Doctor?.Department?.Depname ?? "-")</td></tr>
+        <tr><th>Doctor</th><td>@docDisplay</td><th>Department</th><td>@(Model.Doctor?.Department?.Depname ?? "-")</td></tr>
         <tr><th>Address</th><td colspan="3">@(Model.Addr ?? "-")</td></tr>
     </table>
 

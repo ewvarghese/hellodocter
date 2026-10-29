@@ -1,9 +1,9 @@
 @{
     ViewData["Title"] = "Add Patient Report";
     var apt = ViewBag.Appointment as HelloDoctor.Care.Models.Appointment;
-    int? prefillDoctorId = null;
-    if (ViewBag.PrefillDoctorId != null) { prefillDoctorId = ViewBag.PrefillDoctorId; }
-    string? prefillVisitDate = ViewBag.PrefillVisitDate != null ? (string)ViewBag.PrefillVisitDate : null;
+    int doctorId = ViewBag.DoctorId is int id ? id : 0;
+    string doctorName = ViewBag.DoctorName as string ?? "Doctor";
+    string prefillVisitDateIso = ViewBag.PrefillVisitDateIso as string ?? "";
 }
 
 <div class="w-full flex-grow flex flex-col py-6 px-2">
@@ -25,7 +25,7 @@
         }
 
         @if (apt != null) {
-            <div class="bg-sky-50 border border-sky-200 rounded-2xl px-6 py-4 text-sky-800 font-semibold flex items-center gap-3">
+            <div class="bg-blue-50 border border-blue-200 rounded-2xl px-6 py-4 text-blue-900 font-semibold flex items-center gap-3">
                 <i data-lucide="info" class="w-5 h-5"></i>
                 Creating report for appointment of <strong>@apt.Pname</strong> (@apt.Aptmtdate)
             </div>
@@ -57,8 +57,7 @@
                     </div>
                     <div>
                         <label class="text-xs font-black text-slate-500 uppercase tracking-widest">Visit Date</label>
-                        <input type="text" name="Visitdate" placeholder="dd-MMM-yyyy (e.g. 16-Oct-2026)"
-                               value="@(apt != null ? prefillVisitDate : "")"
+                        <input type="date" name="Visitdate" value="@prefillVisitDateIso"
                                class="w-full mt-2 px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-[#f26522] focus:ring-4 focus:ring-[#f26522]/10 transition-all">
                     </div>
                     <div class="md:col-span-2">
@@ -67,18 +66,11 @@
                                class="w-full mt-2 px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-[#f26522] focus:ring-4 focus:ring-[#f26522]/10 transition-all">
                     </div>
                     <div class="md:col-span-2">
-                        <label class="text-xs font-black text-slate-500 uppercase tracking-widest">Doctor *</label>
-                        <select name="Drid" required
-                                class="w-full mt-2 px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-[#f26522] focus:ring-4 focus:ring-[#f26522]/10 transition-all">
-                            <option value="">-- Select Doctor --</option>
-                            @foreach (var doc in ViewBag.Doctors) {
-                                if (prefillDoctorId == doc.Drid) {
-                                    <option value="@doc.Drid" selected>@doc.Drname</option>
-                                } else {
-                                    <option value="@doc.Drid">@doc.Drname</option>
-                                }
-                            }
-                        </select>
+                        <label class="text-xs font-black text-slate-500 uppercase tracking-widest">Doctor</label>
+                        <input type="hidden" name="Drid" value="@doctorId" />
+                        <div class="w-full mt-2 px-5 py-3.5 bg-slate-100 border border-slate-200 rounded-xl text-sm font-bold text-slate-700">
+                            @doctorName
+                        </div>
                     </div>
                 </div>
             </div>

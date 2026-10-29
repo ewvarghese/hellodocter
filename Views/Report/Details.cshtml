@@ -14,7 +14,7 @@
                 <a href="/Report/PrintReport/@Model.Rptid" target="_blank" class="bg-[#10b981] hover:bg-emerald-600 text-white px-5 py-3 rounded-xl font-bold shadow-md transition-colors flex items-center gap-2">
                     <i data-lucide="printer" class="w-5 h-5"></i> Print
                 </a>
-                <a href="/Report/Edit/@Model.Rptid" class="bg-sky-50 text-sky-600 hover:bg-sky-600 hover:text-white px-5 py-3 rounded-xl font-bold transition-colors flex items-center gap-2">
+                <a href="/Report/Edit/@Model.Rptid" class="bg-blue-50 text-blue-600 hover:bg-blue-700 hover:text-white px-5 py-3 rounded-xl font-bold transition-colors flex items-center gap-2">
                     <i data-lucide="pencil" class="w-5 h-5"></i> Edit
                 </a>
                 <a href="/Report/MedicalReports" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-3 rounded-xl font-bold transition-colors flex items-center gap-2">
@@ -73,15 +73,15 @@
             <p class="text-xs font-black text-slate-400 uppercase tracking-widest">Medical Report</p>
             <div>
                 <p class="text-xs font-black text-emerald-600 uppercase tracking-widest">Diagnosis</p>
-                <p class="mt-2 text-slate-700 font-semibold whitespace-pre-wrap">@(string.IsNullOrWhiteSpace(Model.Diagnosis) ? "-" : Model.Diagnosis)</p>
+                <p class="mt-2 text-slate-700 font-semibold" style="white-space: pre-wrap;">@(string.IsNullOrWhiteSpace(Model.Diagnosis) ? "-" : Model.Diagnosis)</p>
             </div>
             <div>
-                <p class="text-xs font-black text-sky-600 uppercase tracking-widest">Prescription</p>
-                <p class="mt-2 text-slate-700 font-semibold whitespace-pre-wrap">@(string.IsNullOrWhiteSpace(Model.Prescription) ? "-" : Model.Prescription)</p>
+                <p class="text-xs font-black text-blue-600 uppercase tracking-widest">Prescription</p>
+                <p class="mt-2 text-slate-700 font-semibold" style="white-space: pre-wrap;">@(string.IsNullOrWhiteSpace(Model.Prescription) ? "-" : Model.Prescription)</p>
             </div>
             <div>
                 <p class="text-xs font-black text-orange-600 uppercase tracking-widest">Advice / Notes</p>
-                <p class="mt-2 text-slate-700 font-semibold whitespace-pre-wrap">@(string.IsNullOrWhiteSpace(Model.Advice) ? "-" : Model.Advice)</p>
+                <p class="mt-2 text-slate-700 font-semibold" style="white-space: pre-wrap;">@(string.IsNullOrWhiteSpace(Model.Advice) ? "-" : Model.Advice)</p>
             </div>
             <p class="text-xs text-slate-400 font-semibold">Created: @Model.Createddate &nbsp;|&nbsp; Last updated: @Model.Updte</p>
         </div>

@@ -1,6 +1,7 @@
 @model HelloDoctor.Care.Models.PatientReport
 @{
     ViewData["Title"] = "Edit Patient Report";
+    string visitDateIso = ViewBag.VisitDateIso as string ?? "";
 }
 
 <div class="w-full flex-grow flex flex-col py-6 px-2">
@@ -41,7 +42,7 @@
                     </div>
                     <div>
                         <label class="text-xs font-black text-slate-500 uppercase tracking-widest">Visit Date</label>
-                        <input type="text" name="Visitdate" value="@Model.Visitdate" placeholder="dd-MMM-yyyy"
+                        <input type="date" name="Visitdate" value="@visitDateIso"
                                class="w-full mt-2 px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-[#f26522] focus:ring-4 focus:ring-[#f26522]/10 transition-all">
                     </div>
                     <div class="md:col-span-2">

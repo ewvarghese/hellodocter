@@ -1,4 +1,21 @@
-@{ ViewData["Title"] = "Patient Report"; }
+@{
+    ViewData["Title"] = "Patient Report";
+    var visitRows = ViewBag.VisitRows as List<HelloDoctor.Care.Models.PatientVisitRow>
+                    ?? new List<HelloDoctor.Care.Models.PatientVisitRow>();
+    bool allDates = ViewBag.AllDates is bool b ? b : true;
+    string selectedDate = ViewBag.SelectedDate as string ?? "";
+    string todayDate = ViewBag.TodayDate as string ?? "";
+    string displayDate = ViewBag.DisplayDate as string ?? "All Dates";
+    string doctorName = ViewBag.DoctorName as string ?? "Doctor";
+    string search = ViewBag.Search as string ?? "";
+    string status = ViewBag.Status as string ?? "all";
+    int totalPatients = ViewBag.TotalPatients is int tp ? tp : visitRows.Count;
+    int withReports = ViewBag.WithReports is int wr ? wr : 0;
+
+    string printDateParam = allDates ? "all" : Uri.EscapeDataString(selectedDate);
+    string printUrl = $"/Report/PrintPatients?date={printDateParam}&search={Uri.EscapeDataString(search)}&status={Uri.EscapeDataString(status)}";
+    string todayUrl = $"/Report/Index?date={Uri.EscapeDataString(todayDate)}&search={Uri.EscapeDataString(search)}&status={Uri.EscapeDataString(status)}";
+}
 
 <div class="w-full flex-grow flex flex-col py-6 px-2">
     <div class="max-w-7xl mx-auto w-full space-y-8 animate-in fade-in duration-500">
@@ -11,7 +28,7 @@
                 <a href="/Report/MedicalReports" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-3 rounded-xl font-bold shadow-sm transition-colors flex items-center gap-2">
                     <i data-lucide="clipboard-list" class="w-5 h-5"></i> Medical Reports
                 </a>
-                <a href="/Report/PrintPatients?doctorId=@ViewBag.DoctorId&date=@(ViewBag.AllDates ? "all" : ViewBag.SelectedDate)" target="_blank"
+                <a href="@printUrl" target="_blank"
                    class="bg-[#10b981] hover:bg-emerald-600 text-white px-5 py-3 rounded-xl font-bold shadow-md transition-colors flex items-center gap-2">
                     <i data-lucide="printer" class="w-5 h-5"></i> Print
                 </a>
@@ -32,31 +49,44 @@
         <!-- Filters -->
         <div class="bg-white border border-slate-200 rounded-[2rem] p-6 md:p-8 shadow-sm">
             <form action="/Report/Index" method="get" class="flex flex-wrap items-end gap-4">
-                @if (!(ViewBag.IsDoctorUser ?? false)) {
-                    <div class="flex flex-col gap-2">
-                        <label class="text-xs font-black text-slate-400 uppercase tracking-widest">Doctor</label>
-                        <select name="doctorId" class="px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-[#f26522] focus:ring-4 focus:ring-[#f26522]/10 transition-all min-w-56">
-                            <option value="0">All Doctors</option>
-                            @foreach (var doc in ViewBag.Doctors) {
-                                if (ViewBag.DoctorId == doc.Drid) {
-                                    <option value="@doc.Drid" selected>@doc.Drname</option>
-                                } else {
-                                    <option value="@doc.Drid">@doc.Drname</option>
-                                }
-                            }
-                        </select>
-                    </div>
-                }
+                <div class="flex flex-col gap-2 flex-1 min-w-[120px]">
+                    <label class="text-xs font-black text-slate-400 uppercase tracking-widest">Search Patient</label>
+                    <input type="text" name="search" value="@search" placeholder="Patient name, mobile or place..."
+                           class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-[#f26522] focus:ring-4 focus:ring-[#f26522]/10 transition-all">
+                </div>
                 <div class="flex flex-col gap-2">
-                    <label class="text-xs font-black text-slate-400 uppercase tracking-widest">Date</label>
-                    <input type="date" name="date" value="@(ViewBag.AllDates ? "" : ViewBag.SelectedDate)"
+                    <label class="text-xs font-black text-slate-400 uppercase tracking-widest">Visit Date</label>
+                    <input type="date" name="date" value="@selectedDate"
                            class="px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-[#f26522] focus:ring-4 focus:ring-[#f26522]/10 transition-all">
+                </div>
+                <div class="flex flex-col gap-2 min-w-[120px]">
+                    <label class="text-xs font-black text-slate-400 uppercase tracking-widest">Report Status</label>
+                    <select name="status" class="px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-[#f26522] focus:ring-4 focus:ring-[#f26522]/10 transition-all">
+                        @if (status == "all") {
+                            <option value="all" selected>All Visits</option>
+                        } else {
+                            <option value="all">All Visits</option>
+                        }
+                        @if (status == "with") {
+                            <option value="with" selected>With Report</option>
+                        } else {
+                            <option value="with">With Report</option>
+                        }
+                        @if (status == "pending") {
+                            <option value="pending" selected>Pending Report</option>
+                        } else {
+                            <option value="pending">Pending Report</option>
+                        }
+                    </select>
                 </div>
                 <button type="submit" class="bg-[#f26522] hover:bg-orange-600 text-white px-6 py-3.5 rounded-xl font-bold shadow-md transition-colors flex items-center gap-2">
                     <i data-lucide="filter" class="w-5 h-5"></i> Filter
                 </button>
-                <a href="/Report/Index?doctorId=@ViewBag.DoctorId&date=all" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-6 py-3.5 rounded-xl font-bold transition-colors">
-                    All Dates
+                <a href="@todayUrl" class="bg-blue-50 border border-blue-200 hover:bg-slate-200 text-blue-700 px-5 py-3.5 rounded-xl font-bold transition-colors">
+                    Today
+                </a>
+                <a href="/Report/Index" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-3.5 rounded-xl font-bold transition-colors">
+                    Reset
                 </a>
             </form>
         </div>
@@ -65,15 +95,15 @@
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
                 <p class="text-xs font-black text-slate-400 uppercase tracking-widest">Doctor</p>
-                <p class="text-lg font-black text-slate-800 mt-1">@ViewBag.DoctorName</p>
+                <p class="text-lg font-black text-slate-800 mt-1">@doctorName</p>
             </div>
             <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-                <p class="text-xs font-black text-slate-400 uppercase tracking-widest">Date</p>
-                <p class="text-lg font-black text-slate-800 mt-1">@(ViewBag.AllDates ? "All Dates" : ViewBag.DisplayDate)</p>
+                <p class="text-xs font-black text-slate-400 uppercase tracking-widest">Date Filter</p>
+                <p class="text-lg font-black text-slate-800 mt-1">@displayDate</p>
             </div>
             <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
                 <p class="text-xs font-black text-slate-400 uppercase tracking-widest">Patients</p>
-                <p class="text-lg font-black text-slate-800 mt-1">@ViewBag.TotalPatients <span class="text-sm text-slate-400">(@ViewBag.WithReports with report)</span></p>
+                <p class="text-lg font-black text-slate-800 mt-1">@totalPatients <span class="text-sm text-slate-400">(@withReports with report)</span></p>
             </div>
         </div>
 
@@ -87,9 +117,7 @@
                             <th class="py-4 px-4 text-xs font-black text-slate-400 uppercase tracking-widest">Patient</th>
                             <th class="py-4 px-4 text-xs font-black text-slate-400 uppercase tracking-widest">Mobile</th>
                             <th class="py-4 px-4 text-xs font-black text-slate-400 uppercase tracking-widest">Age</th>
-                            @if (ViewBag.DoctorId == 0) {
-                                <th class="py-4 px-4 text-xs font-black text-slate-400 uppercase tracking-widest">Doctor</th>
-                            }
+                            <th class="py-4 px-4 text-xs font-black text-slate-400 uppercase tracking-widest">Place</th>
                             <th class="py-4 px-4 text-xs font-black text-slate-400 uppercase tracking-widest">Date</th>
                             <th class="py-4 px-4 text-xs font-black text-slate-400 uppercase tracking-widest">Slot</th>
                             <th class="py-4 px-4 text-xs font-black text-slate-400 uppercase tracking-widest">Token</th>
@@ -98,7 +126,7 @@
                         </tr>
                     </thead>
                     <tbody class="text-sm font-semibold text-slate-700">
-                        @if (ViewBag.TotalPatients == 0) {
+                        @if (visitRows.Count == 0) {
                             <tr>
                                 <td colspan="10" class="py-12 text-center text-slate-400 font-semibold">
                                     No patient visits found for this filter.
@@ -106,18 +134,16 @@
                             </tr>
                         } else {
                             int index = 1;
-                            foreach (var row in ViewBag.VisitRows) {
+                            foreach (var row in visitRows) {
                                 <tr class="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
                                     <td class="py-4 px-4 text-slate-400">@index</td>
                                     <td class="py-4 px-4 font-black">@row.PatientName</td>
-                                    <td class="py-4 px-4">@row.Mobile</td>
-                                    <td class="py-4 px-4">@row.Age</td>
-                                    @if (ViewBag.DoctorId == 0) {
-                                        <td class="py-4 px-4">@row.DoctorName</td>
-                                    }
+                                    <td class="py-4 px-4">@(row.Mobile ?? "-")</td>
+                                    <td class="py-4 px-4">@(row.Age ?? "-")</td>
+                                    <td class="py-4 px-4 max-w-[200px] truncate" title="@row.Address">@(string.IsNullOrWhiteSpace(row.Address) ? "-" : row.Address)</td>
                                     <td class="py-4 px-4">@row.VisitDate</td>
                                     <td class="py-4 px-4">@row.SlotTime</td>
-                                    <td class="py-4 px-4 text-sky-600 font-black">@row.Token</td>
+                                    <td class="py-4 px-4 text-blue-600 font-black">@row.Token</td>
                                     <td class="py-4 px-4">
                                         @if (row.ReportCount > 0) {
                                             <span class="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full text-xs font-black">
@@ -135,7 +161,7 @@
                                                 <i data-lucide="plus" class="w-4 h-4"></i> Add Report
                                             </a>
                                             @foreach (var rpt in row.Reports) {
-                                                <a href="/Report/Details/@rpt.Rptid" class="bg-sky-50 text-sky-600 hover:bg-sky-600 hover:text-white px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-colors flex items-center gap-1.5">
+                                                <a href="/Report/Details/@rpt.Rptid" class="bg-blue-50 text-blue-600 hover:bg-blue-700 hover:text-white px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-colors flex items-center gap-1.5">
                                                     <i data-lucide="eye" class="w-4 h-4"></i> View
                                                 </a>
                                             }

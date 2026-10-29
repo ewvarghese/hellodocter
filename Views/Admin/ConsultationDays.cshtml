@@ -6,6 +6,13 @@
             <i data-lucide="calendar" class="text-[#f26522]"></i> Consultation Days
         </h3>
 
+        @if (TempData["SuccessMsg"] != null)
+        {
+            <div class="bg-emerald-50 border border-emerald-200 text-emerald-700 px-6 py-4 rounded-xl font-bold flex items-center gap-3">
+                <i data-lucide="check-circle" class="w-5 h-5 shrink-0"></i> @TempData["SuccessMsg"]
+            </div>
+        }
+
  
         <div class="bg-white border border-slate-200 rounded-[2rem] p-8 shadow-sm">
             <h5 class="font-black text-slate-800 mb-6 flex items-center gap-2"><i data-lucide="plus-circle"></i> Add / Update Consultation Days</h5>
@@ -88,3 +95,25 @@
 
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        document.querySelectorAll('input[name="selectedDays"]').forEach(cb => {
+            cb.addEventListener('change', function () {
+                const label = this.closest('label');
+                const span = label.querySelector('span');
+                if (this.checked) {
+                    label.classList.remove('border-slate-200', 'bg-slate-50');
+                    label.classList.add('border-[#f26522]', 'bg-orange-50');
+                    span.classList.remove('text-slate-600');
+                    span.classList.add('text-[#f26522]');
+                } else {
+                    label.classList.remove('border-[#f26522]', 'bg-orange-50', 'bg-orange-50/50');
+                    label.classList.add('border-slate-200', 'bg-slate-50');
+                    span.classList.remove('text-[#f26522]');
+                    span.classList.add('text-slate-600');
+                }
+            });
+        });
+    </script>
+}
